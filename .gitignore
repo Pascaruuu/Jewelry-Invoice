@@ -1,0 +1,21 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+
+# Save files
+Saves/
+
+# Executables
+*.exe
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env

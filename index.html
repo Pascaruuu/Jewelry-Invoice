@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Olympia Invoice</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Lucide React icons as SVG components
+    const Printer = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+        <rect x="6" y="14" width="12" height="8"></rect>
+      </svg>
+    );
+
+    const Plus = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    );
+
+    const X = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    );
+
+    const Save = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+        <polyline points="7 3 7 8 15 8"></polyline>
+      </svg>
+    );
+
+    const FolderOpen = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+      </svg>
+    );
+
+    const FileText = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+      </svg>
+    );
+
+    function ReceiptCalculator() {
+      const [clients, setClients] = useState([]);
+      const [showClientForm, setShowClientForm] = useState(false);
+      const [newClientName, setNewClientName] = useState('');
+      const [showPrintView, setShowPrintView] = useState(false);
+      const [currentPage, setCurrentPage] = useState('invoice');
+      const [drafts, setDrafts] = useState([]);
+      const [activeTab, setActiveTab] = useState(0);
+      const [savePath, setSavePath] = useState('');
+      const [qrCodeImage, setQrCodeImage] = useState('');
+      
+      const [formData, setFormData] = useState({
+        date: new Date().toISOString().split('T')[0],
+        clientName: '',
+        goldMix: '',
+        goldPrice: '',
+        items: [{ 
+          itemName: '', 
+          quantity: '1',
+          qtyUnit: '', // Add unit field
+          subItems: [{ weight: '', laborCost: '' }]
+        }]
+      });
+
+      const [itemTypeOptions, setItemTypeOptions] = useState([
+        'ខ្សែក SVZ',
+        'ខ្សែដៃ BZ',
+        'KZ',
+        'PZ',
+        'EZ',
+        'RZ',
+        'ខ្សែក',
+        'ខ្សែដៃ',
+        'កងដៃ',
+        'ក្រវឹល',
+        'កាវ',
+        'បន្តោង',
+        'ចិញ្ចៀន',
+        'កាំខ្សែដៃ',
+        'កាំខ្សែក'
+      ]);
+
+      const [goldMixOptions, setGoldMixOptions] = useState([
+        { label: '50%', value: '50' },
+        { label: '60%', value: '60' },
+        { label: '65%', value: '65' },
+        { label: '70%', value: '70' },
+        { label: '75%', value: '75' },
+        { label: '78%', value: '78' },
+        { label: 'ស58.5%', value: '58.5' },
+        { label: 'ស70%', value: '70-white' },
+        { label: 'ស78%', value: '78-white' }
+      ]);
+
+      const [qtyUnitOptions, setQtyUnitOptions] = useState(['', 'P', 'ដុំ', 'គូ']);
+
+      useEffect(() => {
+        const savedClients = localStorage.getItem('jewelryClients');
+        if (savedClients) {
+          setClients(JSON.parse(savedClients));
+        }
+        
+        const savedDrafts = localStorage.getItem('jewelryDrafts');
+        if (savedDrafts) {
+          setDrafts(JSON.parse(savedDrafts));
+        }
+        
+        const savedPath = localStorage.getItem('jewelrySavePath');
+        if (savedPath) {
+          setSavePath(savedPath);
+        }
+
+        const savedQR = localStorage.getItem('jewelryQRCode');
+        if (savedQR) {
+          setQrCodeImage(savedQR);
+        }
+
+        // Load settings
+        const savedItemTypes = localStorage.getItem('jewelryItemTypes');
+        if (savedItemTypes) {
+          setItemTypeOptions(JSON.parse(savedItemTypes));
+        }
+
+        const savedGoldMix = localStorage.getItem('jewelryGoldMix');
+        if (savedGoldMix) {
+          setGoldMixOptions(JSON.parse(savedGoldMix));
+        }
+
+        const savedQtyUnits = localStorage.getItem('jewelryQtyUnits');
+        if (savedQtyUnits) {
+          setQtyUnitOptions(JSON.parse(savedQtyUnits));
+        }
+      }, []);
+
+      const handleQRUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64 = event.target.result;
+            setQrCodeImage(base64);
+            localStorage.setItem('jewelryQRCode', base64);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      const handleSelectSavePath = async () => {
+        try {
+          // Check if we're in Electron environment
+          if (typeof require !== 'undefined') {
+            try {
+              const { ipcRenderer } = require('electron');
+              const result = await ipcRenderer.invoke('select-save-path');
+              if (result && result.success) {
+                setSavePath(result.path);
+                localStorage.setItem('jewelrySavePath', result.path);
+                alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${result.path}`);
+              } else {
+                console.log('No folder selected');
+              }
+            } catch (electronError) {
+              console.error('Electron IPC error:', electronError);
+              // Fallback to prompt if Electron fails
+              const folderPath = prompt('Enter save folder path (e.g., C:\\Invoices):');
+              if (folderPath) {
+                setSavePath(folderPath);
+                localStorage.setItem('jewelrySavePath', folderPath);
+                alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${folderPath}`);
+              }
+            }
+          } else {
+            // Fallback for web browser (claude.ai artifact)
+            const folderPath = prompt('Enter save folder path (e.g., C:\\Invoices):');
+            if (folderPath) {
+              setSavePath(folderPath);
+              localStorage.setItem('jewelrySavePath', folderPath);
+              alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${folderPath}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error selecting path:', error);
+          alert('Error: ' + error.message);
+        }
+      };
+
+      const saveClient = () => {
+        if (newClientName.trim() && !clients.includes(newClientName.trim())) {
+          const updatedClients = [...clients, newClientName.trim()];
+          setClients(updatedClients);
+          localStorage.setItem('jewelryClients', JSON.stringify(updatedClients));
+          setFormData({ ...formData, clientName: newClientName.trim() });
+          setNewClientName('');
+          setShowClientForm(false);
+        }
+      };
+
+      const removeClient = (clientToRemove) => {
+        const updatedClients = clients.filter(c => c !== clientToRemove);
+        setClients(updatedClients);
+        localStorage.setItem('jewelryClients', JSON.stringify(updatedClients));
+        if (formData.clientName === clientToRemove) {
+          setFormData({ ...formData, clientName: '' });
+        }
+      };
+
+      const saveDraft = () => {
+        const newDrafts = [...drafts];
+        newDrafts[activeTab] = { ...formData, timestamp: new Date().toISOString() };
+        setDrafts(newDrafts);
+        localStorage.setItem('jewelryDrafts', JSON.stringify(newDrafts));
+        alert('ទិន្នន័យត្រូវបានរក្សាទុក! / Draft saved!');
+      };
+
+      const addNewDraft = () => {
+        const newDraft = {
+          date: new Date().toISOString().split('T')[0],
+          clientName: '',
+          goldMix: '',
+          goldPrice: '',
+          items: [{ 
+            itemName: '', 
+            quantity: '1',
+            qtyUnit: '',
+            subItems: [{ weight: '', laborCost: '' }]
+          }],
+          timestamp: new Date().toISOString()
+        };
+        const newDrafts = [...drafts, newDraft];
+        setDrafts(newDrafts);
+        setActiveTab(newDrafts.length - 1);
+        setFormData(newDraft);
+        localStorage.setItem('jewelryDrafts', JSON.stringify(newDrafts));
+      };
+
+      const loadDraft = (index) => {
+        setActiveTab(index);
+        setFormData(drafts[index]);
+      };
+
+      const deleteDraft = (index) => {
+        const newDrafts = drafts.filter((_, i) => i !== index);
+        setDrafts(newDrafts);
+        localStorage.setItem('jewelryDrafts', JSON.stringify(newDrafts));
+        if (activeTab >= newDrafts.length) {
+          setActiveTab(Math.max(0, newDrafts.length - 1));
+        }
+        if (newDrafts.length > 0) {
+          setFormData(newDrafts[Math.min(activeTab, newDrafts.length - 1)]);
+        } else {
+          setFormData({
+            date: new Date().toISOString().split('T')[0],
+            clientName: '',
+            goldMix: '',
+            goldPrice: '',
+            items: [{ 
+              itemName: '', 
+              quantity: '1',
+              qtyUnit: '',
+              subItems: [{ weight: '', laborCost: '' }]
+            }]
+          });
+        }
+      };
+
+      const addItem = () => {
+        setFormData({
+          ...formData,
+          items: [...formData.items, { 
+            itemName: '', 
+            quantity: '1',
+            qtyUnit: '',
+            subItems: [{ weight: '', laborCost: '' }]
+          }]
+        });
+      };
+
+      const removeItem = (index) => {
+        if (formData.items.length > 1) {
+          const newItems = formData.items.filter((_, i) => i !== index);
+          setFormData({ ...formData, items: newItems });
+        }
+      };
+
+      const updateItem = (index, field, value) => {
+        const newItems = [...formData.items];
+        
+        if (field === 'quantity') {
+          const newQty = parseInt(value) || 1;
+          const currentQty = newItems[index].subItems.length;
+          
+          if (newQty > currentQty) {
+            // Add more subItems
+            for (let i = currentQty; i < newQty; i++) {
+              newItems[index].subItems.push({ weight: '', laborCost: '' });
+            }
+          } else if (newQty < currentQty) {
+            // Remove subItems
+            newItems[index].subItems = newItems[index].subItems.slice(0, newQty);
+          }
+          newItems[index][field] = value;
+        } else {
+          newItems[index][field] = value;
+        }
+        
+        setFormData({ ...formData, items: newItems });
+      };
+
+      const updateSubItem = (itemIndex, subIndex, field, value) => {
+        const newItems = [...formData.items];
+        newItems[itemIndex].subItems[subIndex][field] = value;
+        setFormData({ ...formData, items: newItems });
+      };
+
+      const calculateSubItemTotal = (subItem) => {
+        const { weight, laborCost } = subItem;
+        const { goldMix, goldPrice } = formData;
+
+        if (!weight || !goldPrice || !laborCost) return 0;
+
+        const w = parseFloat(weight);
+        const gm = parseFloat(goldMix);
+        const gp = parseFloat(goldPrice);
+        const lc = parseFloat(laborCost);
+
+        return (w * gm * gp / 100000) + lc;
+      };
+
+      const roundTotal = (value) => {
+        const decimal = value - Math.floor(value);
+        return decimal >= 0.7 ? Math.ceil(value) : Math.floor(value);
+      };
+
+      const calculateItemTotal = (item) => {
+        const rawTotal = item.subItems.reduce(
+          (sum, subItem) => sum + calculateSubItemTotal(subItem),
+          0
+        );
+
+        return roundTotal(rawTotal);
+      };
+
+      const calculateGrandTotal = () => {
+        return formData.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+      };
+
+      const calculateTotals = () => {
+        const totalQty = formData.items.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0);
+        const totalWeight = formData.items.reduce((sum, item) => {
+          return sum + item.subItems.reduce((s, sub) => s + (parseFloat(sub.weight) || 0), 0);
+        }, 0);
+        const totalLabor = formData.items.reduce((sum, item) => {
+          return sum + item.subItems.reduce((s, sub) => s + (parseFloat(sub.laborCost) || 0), 0);
+        }, 0);
+        return { totalQty, totalWeight, totalLabor };
+      };
+
+      const formatDate = (dateString) => {
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
+      };
+
+      const handlePrint = () => {
+        console.log('=== PRINT DEBUG ===');
+        console.log('Full formData:', JSON.stringify(formData, null, 2));
+        console.log('Items:', formData.items);
+        formData.items.forEach((item, idx) => {
+          console.log(`Item ${idx}:`, item);
+          console.log(`  - itemName: ${item.itemName}`);
+          console.log(`  - quantity: ${item.quantity}`);
+          console.log(`  - subItems:`, item.subItems);
+        });
+        setShowPrintView(true);
+      };
+
+      const handleSaveReceipt = async () => {
+        if (!formData.clientName) {
+          alert('សូមបញ្ចូលឈ្មោះអតិថិជន! / Please enter a client name!');
+          return;
+        }
+        
+        if (!savePath) {
+          alert('សូមជ្រើសរើសទីតាំងរក្សាទុកជាមុនសិន!\nPlease select save path first (Browse button)');
+          return;
+        }
+        
+        try {
+          if (typeof require !== 'undefined') {
+            const { ipcRenderer } = require('electron');
+            
+            // Generate HTML content for the invoice
+            const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <title>Invoice - ${formData.clientName}</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+                .header { text-align: center; margin-bottom: 30px; }
+                .info { margin: 20px 0; }
+                .totals { font-weight: bold; background-color: #f9f9f9; }
+                .grand-total { text-align: right; font-size: 24px; font-weight: bold; margin: 20px 0; }
+                .disclaimer { font-size: 12px; margin-top: 20px; color: #666; }
+              </style>
+            </head>
+            <body>
+              <div class="header">
+                <h1 style="font-size: 30px;">អូឡាំព្យា ចាក់ពុម្ពគ្រឿងអលង្ការ</h1>
+                <p style="font-size: 22px;">មានទទួលចាក់ពុម្ពគ្រឿងអលង្ការគ្រប់ប្រភេទ ដោយម៉ាស្សីនស្វ័យប្រវត្តិយ៉ាងទំនើបទាន់ចិត្ត</p>
+                <h2>វិក័យប័ត្រ / INVOICE</h2>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <div>
+                  <p style="font-size: 19px;"><strong>TEL:</strong> 012205358<br/>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;061848616</p>
+                </div>
+                <div style="text-align: right;">
+                  <p style="font-size: 19px;">ផ្ទះលេខ10C1E0 ផ្លូវលេខ211<br/>សង្កាត់វាលវង់ ខណ្ឌ៧មករា</p>
+                </div>
+              </div>
+              
+              <div class="info">
+                <p><strong>ឈ្មោះអតិថិជន / Client Name: <span style="font-size: 22px;">${formData.clientName}</span></strong></p>
+                <p><strong>ថ្ងៃទី / Date:</strong> ${formatDate(formData.date)}</p>
+                <p><strong>ផ្លាទីនទឹក / Gold Mix:</strong> ${goldMixOptions.find(o => o.value === formData.goldMix)?.label || ''}</p>
+                <p><strong>ហាងឆេង / Gold Market Price:</strong> $${formData.goldPrice}</p>
+              </div>
+              
+              <table>
+                <thead>
+                  <tr>
+                    <th>ប្រភេទគ្រឿង<br/>Type of Goods</th>
+                    <th style="text-align: center;">ចំនួន<br/>Qty</th>
+                    <th style="text-align: center;">ទំងន់<br/>Weight (l)</th>
+                    <th style="text-align: right;">ឈ្នួល<br/>Labor</th>
+                    <th style="text-align: right;">សរុប<br/>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${formData.items.map(item => {
+                    const totalWeight = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.weight) || 0), 0);
+                    const totalLabor = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.laborCost) || 0), 0);
+                    return `
+                    <tr>
+                      <td>${item.itemName}</td>
+                      <td style="text-align: center;">${item.quantity}${item.qtyUnit || ''}</td>
+                      <td style="text-align: center;">${totalWeight.toFixed(1)}</td>
+                      <td style="text-align: right;">$${totalLabor}</td>
+                      <td style="text-align: right;">$${calculateItemTotal(item).toLocaleString()}</td>
+                    </tr>`;
+                  }).join('')}
+                  <tr class="totals">
+                    <td>សរុប / TOTAL</td>
+                    <td style="text-align: center;">${totals.totalQty}</td>
+                    <td style="text-align: center;">${totals.totalWeight.toFixed(1)}</td>
+                    <td style="text-align: right;">$${totals.totalLabor}</td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <div class="grand-total">
+                សរុបរួម / GRAND TOTAL: $${calculateGrandTotal().toLocaleString()}
+              </div>
+              
+              <div class="disclaimer">
+                <p style="font-size: 18px;">អ្នកទិញបានមើល ថ្លឹង នឹងយល់ព្រមតាមទំងន់ខាងលើត្រឹមត្រូវ។</p>
+              </div>
+              
+              ${qrCodeImage ? `<div style="text-align: center; margin-top: 30px;"><img src="${qrCodeImage}" style="width: auto; height: 220px;" /></div>` : ''}
+            </body>
+            </html>`;
+
+            // Create filename with date_name_goods
+            const goodsList = formData.items
+              .map(item => item.itemName)
+              .filter(name => name) // Remove empty names
+              .join('_');
+            const now = new Date();
+            const timeSaved =
+              `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
+            const fileName = `${formatDate(formData.date).replace(/\//g, '-')}_${formData.clientName}_${goodsList}_${timeSaved}`;
+            
+            const result = await ipcRenderer.invoke('save-pdf', {
+              clientName: formData.clientName,
+              fileName: fileName,
+              basePath: savePath,
+              htmlContent: htmlContent
+            });
+            
+            if (result && result.success) {
+              alert(`វិក័យប័ត្រត្រូវបានរក្សាទុក!\nInvoice saved successfully!\n\nPath: ${result.path}`);
+            } else {
+              alert(`បរាជ័យក្នុងការរក្សាទុក!\nFailed to save: ${result?.error || 'Unknown error'}`);
+            }
+          } else {
+            alert('Save feature only works in desktop app');
+          }
+        } catch (error) {
+          console.error('Save error:', error);
+          alert(`Error saving receipt: ${error.message}`);
+        }
+      };
+
+      const handleReset = () => {
+        setFormData({
+          date: new Date().toISOString().split('T')[0],
+          clientName: '',
+          goldMix: '',
+          goldPrice: '',
+          items: [{ 
+            itemName: '', 
+            quantity: '1',
+            qtyUnit: '',
+            subItems: [{ weight: '', laborCost: '' }]
+          }]
+        });
+      };
+
+      const saveItemTypeOptions = (newOptions) => {
+        setItemTypeOptions(newOptions);
+        localStorage.setItem('jewelryItemTypes', JSON.stringify(newOptions));
+      };
+
+      const saveGoldMixOptions = (newOptions) => {
+        setGoldMixOptions(newOptions);
+        localStorage.setItem('jewelryGoldMix', JSON.stringify(newOptions));
+      };
+
+      const saveQtyUnitOptions = (newOptions) => {
+        setQtyUnitOptions(newOptions);
+        localStorage.setItem('jewelryQtyUnits', JSON.stringify(newOptions));
+      };
+
+      const addItemType = (newType) => {
+        const updated = [...itemTypeOptions, newType];
+        saveItemTypeOptions(updated);
+      };
+
+      const removeItemType = (typeToRemove) => {
+        const updated = itemTypeOptions.filter(t => t !== typeToRemove);
+        saveItemTypeOptions(updated);
+      };
+
+      const addQtyUnit = (newUnit) => {
+        const updated = [...qtyUnitOptions, newUnit];
+        saveQtyUnitOptions(updated);
+      };
+
+      const removeQtyUnit = (unitToRemove) => {
+        const updated = qtyUnitOptions.filter(u => u !== unitToRemove);
+        saveQtyUnitOptions(updated);
+      };
+
+      const addGoldMix = (newMix) => {
+        const updated = [...goldMixOptions, newMix];
+        saveGoldMixOptions(updated);
+      };
+
+      const removeGoldMix = (valueToRemove) => {
+        const updated = goldMixOptions.filter(m => m.value !== valueToRemove);
+        saveGoldMixOptions(updated);
+      };
+
+      const totals = calculateTotals();
+
+      if (currentPage === 'settings') {
+        return (
+          <div className="min-h-screen bg-gray-50 flex">
+            {/* Sidebar */}
+            <div className="w-64 bg-white shadow-lg p-4">
+              <h1 className="text-xl font-bold mb-6">វិក័យប័ត្រ / Invoice</h1>
+              
+              <div className="space-y-2 mb-6">
+                <button
+                  onClick={() => setCurrentPage('invoice')}
+                  className="w-full text-left px-4 py-2 rounded hover:bg-gray-100"
+                >
+                  📄 Invoice
+                </button>
+                <button
+                  onClick={() => setCurrentPage('settings')}
+                  className="w-full text-left px-4 py-2 rounded bg-blue-100 text-blue-700 font-semibold"
+                >
+                  ⚙️ Settings
+                </button>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-semibold">Drafts</span>
+                  <button
+                    onClick={addNewDraft}
+                    className="w-6 h-6 bg-green-600 text-white rounded flex items-center justify-center hover:bg-green-700"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {drafts.map((draft, idx) => {
+                    const orderItems = draft.items.map(i => i.itemName).filter(Boolean).join(', ');
+                    const draftName = `${idx + 1} - ${draft.clientName || 'New'}${orderItems ? `_${orderItems}` : ''}`;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          loadDraft(idx);
+                          setCurrentPage('invoice');
+                        }}
+                        className={`w-full text-left px-2 py-1 text-xs rounded flex items-center justify-between group ${
+                          activeTab === idx ? 'bg-blue-100' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className="truncate">{draftName}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDraft(idx);
+                          }}
+                          className="opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={12} />
+                        </button>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Settings Content */}
+            <div className="flex-1 p-8">
+              <h2 className="text-2xl font-bold mb-6">ការកំណត់ / Settings</h2>
+
+              {/* Save Path */}
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h3 className="text-lg font-semibold mb-4">រក្សាទុកទី / Save Path</h3>
+                <div className="flex gap-2 items-center">
+                  <button
+                    onClick={handleSelectSavePath}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Browse...
+                  </button>
+                  <span className="text-sm text-gray-600">{savePath || 'Not set'}</span>
+                </div>
+              </div>
+
+              {/* QR Code */}
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h3 className="text-lg font-semibold mb-4">QR Code</h3>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleQRUpload}
+                  className="mb-2"
+                />
+                {qrCodeImage && (
+                  <img src={qrCodeImage} alt="QR Preview" className="w-32 h-auto mt-2" />
+                )}
+              </div>
+
+              {/* Type of Goods */}
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h3 className="text-lg font-semibold mb-4">ប្រភេទគ្រឿង / Type of Goods</h3>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    id="newItemType"
+                    placeholder="Add new type..."
+                    className="flex-1 px-3 py-2 border rounded"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.target.value.trim()) {
+                        addItemType(e.target.value.trim());
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById('newItemType');
+                      if (input.value.trim()) {
+                        addItemType(input.value.trim());
+                        input.value = '';
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {itemTypeOptions.map((type, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded"
+                    >
+                      {type}
+                      <button
+                        onClick={() => removeItemType(type)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quantity Units */}
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h3 className="text-lg font-semibold mb-4">ឯកតាចំនួន / Quantity Units</h3>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    id="newQtyUnit"
+                    placeholder="Add new unit..."
+                    className="flex-1 px-3 py-2 border rounded"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.target.value.trim()) {
+                        addQtyUnit(e.target.value.trim());
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById('newQtyUnit');
+                      if (input.value.trim()) {
+                        addQtyUnit(input.value.trim());
+                        input.value = '';
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {qtyUnitOptions.filter(u => u).map((unit, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded"
+                    >
+                      {unit}
+                      <button
+                        onClick={() => removeQtyUnit(unit)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gold Mix */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-4">ផ្លាទីនទឹក / Gold Mix Options</h3>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    id="newGoldLabel"
+                    placeholder="Label (e.g., 80%)"
+                    className="flex-1 px-3 py-2 border rounded"
+                  />
+                  <input
+                    type="text"
+                    id="newGoldValue"
+                    placeholder="Value (e.g., 80)"
+                    className="flex-1 px-3 py-2 border rounded"
+                  />
+                  <button
+                    onClick={() => {
+                      const labelInput = document.getElementById('newGoldLabel');
+                      const valueInput = document.getElementById('newGoldValue');
+                      if (labelInput.value.trim() && valueInput.value.trim()) {
+                        addGoldMix({ label: labelInput.value.trim(), value: valueInput.value.trim() });
+                        labelInput.value = '';
+                        valueInput.value = '';
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {goldMixOptions.map((mix, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded"
+                    >
+                      {mix.label}
+                      <button
+                        onClick={() => removeGoldMix(mix.value)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (showPrintView) {
+        return (
+          <div className="min-h-screen bg-white p-8">
+            <div className="max-w-3xl mx-auto">
+              <div className="mb-8">
+                <button
+                  onClick={() => setShowPrintView(false)}
+                  className="mb-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  ← ត្រឡប់ក្រោយ / Back
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="ml-2 mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  បោះពុម្ព / Print
+                </button>
+              </div>
+
+              <div className="border-2 border-gray-300 p-8">
+                <h1 className="text-3xl font-bold text-center mb-2">អូឡាំព្យា ចាក់ពុម្ពគ្រឿងអលង្ការ</h1>
+                <div className="text-lg text-center mb-6 text-gray-700 leading-relaxed">
+                  មានទទួលចាក់ពុម្ពគ្រឿងអលង្ការគ្រប់ប្រភេទ<br/>ដោយម៉ាស្សីនស្វ័យប្រវត្តិយ៉ាងទំនើបទាន់ចិត្ត
+                </div>
+                
+                <h2 className="text-3xl font-bold text-center mb-6">វិក័យប័ត្រ / INVOICE</h2>
+                
+                <div className="flex justify-between mb-6">
+                  <div className="text-lg">
+                    <div>TEL: 012205358</div>
+                    <div style={{paddingLeft: '28px'}}>061848616</div>
+                  </div>
+                  <div className="text-right text-lg leading-relaxed">
+                    ផ្ទះលេខ10C1E0 ផ្លូវលេខ211<br/>សង្កាត់វាលវង់ ខណ្ឌ៧មករា
+                  </div>
+                </div>
+                
+                <div className="mb-6 text-base">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-semibold">ថ្ងៃទី / Date:</span>
+                    <span>{formatDate(formData.date)}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-semibold">ឈ្មោះអតិថិជន / Client Name:</span>
+                    <span>{formData.clientName}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-semibold">ផ្លាទីនទឹក / Gold Mix:</span>
+                    <span>{goldMixOptions.find(o => o.value === formData.goldMix)?.label}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-semibold">ហាងឆេង / Gold Market Price:</span>
+                    <span>${formData.goldPrice}</span>
+                  </div>
+                </div>
+
+                <table className="w-full mb-6 border-collapse text-base">
+                  <thead>
+                    <tr className="border-b-2 border-gray-300">
+                      <th className="text-left py-3 px-2">ប្រភេទគ្រឿង<br/>Type of Goods</th>
+                      <th className="text-center py-3 px-2">ចំនួន<br/>Qty</th>
+                      <th className="text-center py-3 px-2">ទំងន់<br/>Weight (l)</th>
+                      <th className="text-right py-3 px-2">ឈ្នួល<br/>Labor</th>
+                      <th className="text-right py-3 px-2">សរុប<br/>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formData.items.map((item, idx) => {
+                      let totalW = 0;
+                      let totalL = 0;
+                      
+                      if (item.subItems && item.subItems.length > 0) {
+                        item.subItems.forEach(sub => {
+                          totalW += parseFloat(sub.weight) || 0;
+                          totalL += parseFloat(sub.laborCost) || 0;
+                        });
+                      }
+                      
+                      const weightDisplay = totalW.toFixed(1);
+                      const laborDisplay = totalL;
+                      
+                      return (
+                        <tr key={`item-${idx}-${item.itemName}`} className="border-b border-gray-200">
+                          <td className="py-3 px-2">{item.itemName}</td>
+                          <td className="text-center py-3 px-2">{item.quantity}{item.qtyUnit}</td>
+                          <td className="text-center py-3 px-2">{weightDisplay}</td>
+                          <td className="text-right py-3 px-2">${laborDisplay}</td>
+                          <td className="text-right py-3 px-2 font-semibold">${calculateItemTotal(item).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-t-2 border-gray-300 font-semibold">
+                      <td className="py-3 px-2">សរុប / TOTAL</td>
+                      <td className="text-center py-3 px-2">{totals.totalQty}</td>
+                      <td className="text-center py-3 px-2">{totals.totalWeight.toFixed(1)}</td>
+                      <td className="text-right py-3 px-2">${totals.totalLabor}</td>
+                      <td className="text-right py-3 px-2"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div className="flex justify-between items-start mb-6">
+                  <div className="text-lg text-gray-600 max-w-md leading-relaxed">
+                    អ្នកទិញបានមើល ថ្លឹង នឹងយល់ព្រម<br/>តាមទំងន់ខាងលើត្រឹមត្រូវ។
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold mb-1">
+                      <span className="mr-4">សរុបរួម / GRAND TOTAL:</span>
+                      <span className="text-3xl">${calculateGrandTotal().toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {qrCodeImage && (
+                  <div className="flex justify-center mt-4">
+                    <img src={qrCodeImage} alt="QR Code" className="w-48 h-auto" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-gray-50 flex">
+          {/* Sidebar */}
+          <div className="w-64 bg-white shadow-lg p-4">
+            <h1 className="text-xl font-bold mb-6">វិក័យប័ត្រ / Invoice</h1>
+            
+            <div className="space-y-2 mb-6">
+              <button
+                onClick={() => setCurrentPage('invoice')}
+                className="w-full text-left px-4 py-2 rounded bg-blue-100 text-blue-700 font-semibold"
+              >
+                📄 Invoice
+              </button>
+              <button
+                onClick={() => setCurrentPage('settings')}
+                className="w-full text-left px-4 py-2 rounded hover:bg-gray-100"
+              >
+                ⚙️ Settings
+              </button>
+            </div>
+
+            <div className="border-t pt-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-semibold">Drafts</span>
+                <button
+                  onClick={addNewDraft}
+                  className="w-6 h-6 bg-green-600 text-white rounded flex items-center justify-center hover:bg-green-700"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+              <div className="space-y-1 max-h-96 overflow-y-auto">
+                {drafts.map((draft, idx) => {
+                  const orderItems = draft.items.map(i => i.itemName).filter(Boolean).join(', ');
+                  const draftName = `${idx + 1} - ${draft.clientName || 'New'}${orderItems ? `_${orderItems}` : ''}`;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => loadDraft(idx)}
+                      className={`w-full text-left px-2 py-1 text-xs rounded flex items-center justify-between group ${
+                        activeTab === idx ? 'bg-blue-100' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <span className="truncate">{draftName}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteDraft(idx);
+                        }}
+                        className="opacity-0 group-hover:opacity-100"
+                      >
+                        <X size={12} />
+                      </button>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 p-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold text-gray-800">វិក័យប័ត្រ / Invoice</h1>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveDraft}
+                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-2"
+                    >
+                      <Save size={18} />
+                      រក្សាទុក / Save Draft
+                    </button>
+                    <button
+                      onClick={handleSaveReceipt}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+                    >
+                      <FolderOpen size={18} />
+                      រក្សាទុក PDF / Save as PDF
+                    </button>
+                  </div>
+                </div>
+
+              {drafts.length === 0 && (
+                <div className="mb-4">
+                  <button
+                    onClick={addNewDraft}
+                    className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                  >
+                    <Plus size={14} />
+                    បន្ថែមថ្មី / New Draft
+                  </button>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ឈ្មោះអតិថិជន / Client Name
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.clientName}
+                      onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">ជ្រើសរើសអតិថិជន... / Select client...</option>
+                      {clients.map((client, idx) => (
+                        <option key={idx} value={client}>{client}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setShowClientForm(!showClientForm)}
+                      className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      <Plus size={18} />
+                    </button>
+                  </div>
+                {showClientForm && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && saveClient()}
+                    placeholder="ឈ្មោះអតិថិជនថ្មី / New client name"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={saveClient}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    រក្សាទុក / Save
+                  </button>
+                </div>
+              )}
+              
+              {clients.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {clients.map((client, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm"
+                    >
+                      {client}
+                      <button
+                        onClick={() => removeClient(client)}
+                        className="hover:text-red-600"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ផ្លាទីនទឹក / Gold Mix
+                </label>
+                <select
+                  value={formData.goldMix}
+                  onChange={(e) => setFormData({ ...formData, goldMix: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">-- ជ្រើសរើស / Select --</option>
+                  {goldMixOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ហាងឆេង / Gold Market Price
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    step="1"
+                    value={formData.goldPrice}
+                    onChange={(e) => setFormData({ ...formData, goldPrice: e.target.value })}
+                    className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mt-4">
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-lg font-semibold text-gray-800">គ្រឿង / Items</h2>
+                <button
+                  onClick={addItem}
+                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                >
+                  <Plus size={16} />
+                  បន្ថែម / Add Item
+                </button>
+              </div>
+
+              {formData.items.map((item, idx) => (
+                <div key={idx} className="mb-4 p-4 bg-gray-50 rounded border border-gray-200">
+                  <div className="flex gap-2 items-start mb-3">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">ប្រភេទគ្រឿង / Type of Goods</label>
+                      <select
+                        value={item.itemName}
+                        onChange={(e) => updateItem(idx, 'itemName', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- ជ្រើសរើស / Select --</option>
+                        {itemTypeOptions.map((type, i) => (
+                          <option key={i} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-32">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">ចំនួន / Qty</label>
+                          <div className="flex gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={item.quantity}
+                              onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                              className="w-16 px-2 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <select
+                              value={item.qtyUnit}
+                              onChange={(e) => updateItem(idx, 'qtyUnit', e.target.value)}
+                              className="w-14 px-1 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-xs"
+                            >
+                              {qtyUnitOptions.map((unit, i) => (
+                                <option key={i} value={unit}>{unit || '-'}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                    <div className="w-28 pt-6">
+                      <div className="text-sm font-semibold text-gray-700 px-2 py-2 bg-white rounded border border-gray-300">
+                        ${calculateItemTotal(item).toLocaleString()}
+                      </div>
+                    </div>
+                    {formData.items.length > 1 && (
+                      <button
+                        onClick={() => removeItem(idx)}
+                        className="mt-6 p-2 text-red-600 hover:bg-red-50 rounded"
+                      >
+                        <X size={20} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sub-items for each quantity */}
+                  <div className="ml-4 space-y-2">
+                    {item.subItems.map((subItem, subIdx) => (
+                      <div key={subIdx} className="flex gap-2 items-center bg-white p-2 rounded border border-gray-200">
+                        <span className="text-xs text-gray-500 w-12">#{subIdx + 1}</span>
+                        <div className="flex-1">
+                          <input
+                            type="number"
+                            step="1"
+                            placeholder="ទំងន់ / Weight"
+                            value={subItem.weight}
+                            onChange={(e) => updateSubItem(idx, subIdx, 'weight', e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1 text-gray-500 text-xs">$</span>
+                            <input
+                              type="number"
+                              step="1"
+                              placeholder="ឈ្នួល / Labor"
+                              value={subItem.laborCost}
+                              onChange={(e) => updateSubItem(idx, subIdx, 'laborCost', e.target.value)}
+                              className="w-full pl-5 pr-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="w-24 text-right text-sm font-semibold text-gray-700">
+                          ${calculateSubItemTotal(subItem).toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="mt-2 p-3 bg-blue-50 rounded border border-blue-200">
+                <div className="flex gap-4 items-center">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500 mb-1">សរុប / TOTAL</div>
+                    <div className="font-semibold text-gray-700">សរុប / TOTAL</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 mb-1">ចំនួន / Qty</div>
+                    <div className="font-semibold text-gray-700">{totals.totalQty}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 mb-1">ទំងន់ / Weight</div>
+                    <div className="font-semibold text-gray-700">{totals.totalWeight.toFixed(1)}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500 mb-1">ឈ្នួល / Labor</div>
+                    <div className="font-semibold text-gray-700">${totals.totalLabor}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mt-6">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-semibold text-gray-700">សរុបរួម / Grand Total:</span>
+                <span className="text-2xl font-bold text-blue-600">${calculateGrandTotal().toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-4">
+              <button
+                onClick={handleReset}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                កំណត់ឡើងវិញ / Reset
+              </button>
+              <button
+                onClick={handlePrint}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                <Printer size={18} />
+                បោះពុម្ព / Print
+              </button>
+            </div>
+          </div>
+              </div>
+            </div>
+          </div>
+
+          <style>{`
+              @media print {
+                @page {
+                  size: A4;
+                  margin: 10mm;
+                }
+                body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+                .print\\:hidden { display: none !important; }
+                .print\\:shadow-none { box-shadow: none !important; }
+                .print\\:border-none { border: none !important; }
+                input, select { border: none !important; background: transparent !important; }
+              }
+            `}</style>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<ReceiptCalculator />);
+    </script>
+  </body>
+</html>
