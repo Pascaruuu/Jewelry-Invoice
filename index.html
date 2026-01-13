@@ -81,7 +81,8 @@
         items: [{ 
           itemName: '', 
           quantity: '1',
-          qtyUnit: '', // Add unit field
+          qtyUnit: '',
+          productCode: '',
           subItems: [{ weight: '', laborCost: '' }]
         }]
       });
@@ -246,6 +247,7 @@
             itemName: '', 
             quantity: '1',
             qtyUnit: '',
+            productCode: '',
             subItems: [{ weight: '', laborCost: '' }]
           }],
           timestamp: new Date().toISOString()
@@ -281,6 +283,7 @@
               itemName: '', 
               quantity: '1',
               qtyUnit: '',
+              productCode: '',
               subItems: [{ weight: '', laborCost: '' }]
             }]
           });
@@ -294,6 +297,7 @@
             itemName: '', 
             quantity: '1',
             qtyUnit: '',
+            productCode: '',
             subItems: [{ weight: '', laborCost: '' }]
           }]
         });
@@ -356,17 +360,22 @@
       };
 
       const calculateItemTotal = (item) => {
-        const rawTotal = item.subItems.reduce(
+        return item.subItems.reduce(
           (sum, subItem) => sum + calculateSubItemTotal(subItem),
           0
         );
-
-        return roundTotal(rawTotal);
       };
+
 
       const calculateGrandTotal = () => {
-        return formData.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+        const rawGrandTotal = formData.items.reduce(
+          (sum, item) => sum + calculateItemTotal(item),
+          0
+        );
+
+        return roundTotal(rawGrandTotal);
       };
+
 
       const calculateTotals = () => {
         const totalQty = formData.items.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0);
@@ -471,7 +480,7 @@
                     const totalLabor = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.laborCost) || 0), 0);
                     return `
                     <tr>
-                      <td>${item.itemName}</td>
+                      <td>${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}</td>
                       <td style="text-align: center;">${item.quantity}${item.qtyUnit || ''}</td>
                       <td style="text-align: center;">${totalWeight.toFixed(1)}</td>
                       <td style="text-align: right;">$${totalLabor}</td>
@@ -541,6 +550,7 @@
             itemName: '', 
             quantity: '1',
             qtyUnit: '',
+            productCode: '',
             subItems: [{ weight: '', laborCost: '' }]
           }]
         });
@@ -820,7 +830,7 @@
                       key={idx}
                       className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded"
                     >
-                      {mix.label}
+                      {mix.label} <span className="text-xs text-gray-500">({mix.value})</span>
                       <button
                         onClick={() => removeGoldMix(mix.value)}
                         className="text-red-600 hover:text-red-800"
@@ -919,7 +929,10 @@
                       
                       return (
                         <tr key={`item-${idx}-${item.itemName}`} className="border-b border-gray-200">
-                          <td className="py-3 px-2">{item.itemName}</td>
+                          <td className="py-3 px-2">
+                            {item.itemName}
+                            {item.productCode && ` N${item.productCode}`}
+                          </td>
                           <td className="text-center py-3 px-2">{item.quantity}{item.qtyUnit}</td>
                           <td className="text-center py-3 px-2">{weightDisplay}</td>
                           <td className="text-right py-3 px-2">${laborDisplay}</td>
@@ -1190,6 +1203,16 @@
                           <option key={i} value={type}>{type}</option>
                         ))}
                       </select>
+                    </div>
+                    <div className="w-24">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">លេខកូដ / Code</label>
+                      <input
+                        type="text"
+                        placeholder="№"
+                        value={item.productCode}
+                        onChange={(e) => updateItem(idx, 'productCode', e.target.value)}
+                        className="w-full px-2 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
                     <div className="w-32">
                           <label className="block text-xs font-medium text-gray-600 mb-1">ចំនួន / Qty</label>
