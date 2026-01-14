@@ -2,13 +2,21 @@ const { app, BrowserWindow, ipcMain, dialog} = require('electron');
 const fs = require('fs');
 const path = require('path');
 
+app.disableHardwareAcceleration();
+
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+  width: 1400,
+  height: 900,
+  webPreferences: {
+    nodeIntegration: true,
+    contextIsolation: false
+  }
+  });
+
+  win.on('focus', () => {
+    if (!win.isDestroyed()) {
+      win.webContents.focus();
     }
   });
 
@@ -66,6 +74,17 @@ ipcMain.handle('select-save-path', async () => {
   }
   
   return { success: false };
+});
+
+// Open File Handler
+ipcMain.handle('open-file', async (event, filePath) => {
+  try {
+    const { shell } = require('electron');
+    await shell.openPath(filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
 
 app.whenReady().then(createWindow);

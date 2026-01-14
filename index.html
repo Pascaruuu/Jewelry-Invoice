@@ -360,21 +360,20 @@
       };
 
       const calculateItemTotal = (item) => {
-        return item.subItems.reduce(
+        const rawTotal = item.subItems.reduce(
           (sum, subItem) => sum + calculateSubItemTotal(subItem),
           0
         );
+
+        return roundTotal(rawTotal);
       };
+
 
 
       const calculateGrandTotal = () => {
-        const rawGrandTotal = formData.items.reduce(
-          (sum, item) => sum + calculateItemTotal(item),
-          0
-        );
-
-        return roundTotal(rawGrandTotal);
+        return formData.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
       };
+
 
 
       const calculateTotals = () => {
@@ -407,136 +406,213 @@
       };
 
       const handleSaveReceipt = async () => {
-        if (!formData.clientName) {
-          alert('សូមបញ្ចូលឈ្មោះអតិថិជន! / Please enter a client name!');
-          return;
-        }
+              // Check client name first - don't save without it
+              if (!formData.clientName || !formData.clientName.trim()) {
+                // Create custom popup
+                const popup = document.createElement('div');
+                popup.innerHTML = `
+                  <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+                    <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
+                      <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
+                      <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">មិនអាចរក្សាទុកបាន / Cannot Save</h3>
+                      <p style="margin-bottom: 20px;">សូមបញ្ចូលឈ្មោះអតិថិជន!<br/>Please enter a client name!</p>
+                      <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
+                    </div>
+                  </div>
+                `;
+                document.body.appendChild(popup);
+                return;
+              }
+              
+              if (!savePath) {
+                const popup = document.createElement('div');
+                popup.innerHTML = `
+                  <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+                    <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
+                      <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
+                      <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">មិនអាចរក្សាទុកបាន / Cannot Save</h3>
+                      <p style="margin-bottom: 20px;">សូមជ្រើសរើសទីតាំងរក្សាទុកជាមុនសិន!<br/>Please select save path first (Go to Settings)</p>
+                      <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
+                    </div>
+                  </div>
+                `;
+                document.body.appendChild(popup);
+                return;
+              }
+              
+              try {
+                if (typeof require !== 'undefined') {
+                  const { ipcRenderer } = require('electron');
+                  
+                  // Generate HTML content for the invoice
+                  const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Invoice - ${formData.clientName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; font-weight: bold; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .info { margin: 20px 0; }
+          .totals { font-weight: bold; background-color: #f9f9f9; }
+          .grand-total { text-align: right; font-size: 24px; font-weight: bold; margin: 20px 0; }
+          .disclaimer { font-size: 12px; margin-top: 20px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 style="font-size: 30px;">អូឡាំព្យា ចាក់ពុម្ពគ្រឿងអលង្ការ</h1>
+          <p style="font-size: 22px;">មានទទួលចាក់ពុម្ពគ្រឿងអលង្ការគ្រប់ប្រភេទ ដោយម៉ាស្សីនស្វ័យប្រវត្តិយ៉ាងទំនើបទាន់ចិត្ត</p>
+          <h2>វិក័យប័ត្រ / INVOICE</h2>
+        </div>
         
-        if (!savePath) {
-          alert('សូមជ្រើសរើសទីតាំងរក្សាទុកជាមុនសិន!\nPlease select save path first (Browse button)');
-          return;
-        }
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+          <div>
+            <p style="font-size: 19px;"><strong>TEL:</strong> 012205358<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;061848616</p>
+          </div>
+          <div style="text-align: right;">
+            <p style="font-size: 19px;">ផ្ទះលេខ10C1E0 ផ្លូវលេខ211<br/>សង្កាត់វាលវង់ ខណ្ឌ៧មករា</p>
+          </div>
+        </div>
         
-        try {
-          if (typeof require !== 'undefined') {
-            const { ipcRenderer } = require('electron');
-            
-            // Generate HTML content for the invoice
-            const htmlContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="UTF-8">
-              <title>Invoice - ${formData.clientName}</title>
-              <style>
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; font-weight: bold; }
-                .header { text-align: center; margin-bottom: 30px; }
-                .info { margin: 20px 0; }
-                .totals { font-weight: bold; background-color: #f9f9f9; }
-                .grand-total { text-align: right; font-size: 24px; font-weight: bold; margin: 20px 0; }
-                .disclaimer { font-size: 12px; margin-top: 20px; color: #666; }
-              </style>
-            </head>
-            <body>
-              <div class="header">
-                <h1 style="font-size: 30px;">អូឡាំព្យា ចាក់ពុម្ពគ្រឿងអលង្ការ</h1>
-                <p style="font-size: 22px;">មានទទួលចាក់ពុម្ពគ្រឿងអលង្ការគ្រប់ប្រភេទ ដោយម៉ាស្សីនស្វ័យប្រវត្តិយ៉ាងទំនើបទាន់ចិត្ត</p>
-                <h2>វិក័យប័ត្រ / INVOICE</h2>
-              </div>
-              
-              <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-                <div>
-                  <p style="font-size: 19px;"><strong>TEL:</strong> 012205358<br/>
-                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;061848616</p>
-                </div>
-                <div style="text-align: right;">
-                  <p style="font-size: 19px;">ផ្ទះលេខ10C1E0 ផ្លូវលេខ211<br/>សង្កាត់វាលវង់ ខណ្ឌ៧មករា</p>
-                </div>
-              </div>
-              
-              <div class="info">
-                <p><strong>ឈ្មោះអតិថិជន / Client Name: <span style="font-size: 22px;">${formData.clientName}</span></strong></p>
-                <p><strong>ថ្ងៃទី / Date:</strong> ${formatDate(formData.date)}</p>
-                <p><strong>ផ្លាទីនទឹក / Gold Mix:</strong> ${goldMixOptions.find(o => o.value === formData.goldMix)?.label || ''}</p>
-                <p><strong>ហាងឆេង / Gold Market Price:</strong> $${formData.goldPrice}</p>
-              </div>
-              
-              <table>
-                <thead>
-                  <tr>
-                    <th>ប្រភេទគ្រឿង<br/>Type of Goods</th>
-                    <th style="text-align: center;">ចំនួន<br/>Qty</th>
-                    <th style="text-align: center;">ទំងន់<br/>Weight (l)</th>
-                    <th style="text-align: right;">ឈ្នួល<br/>Labor</th>
-                    <th style="text-align: right;">សរុប<br/>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${formData.items.map(item => {
-                    const totalWeight = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.weight) || 0), 0);
-                    const totalLabor = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.laborCost) || 0), 0);
-                    return `
-                    <tr>
-                      <td>${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}</td>
-                      <td style="text-align: center;">${item.quantity}${item.qtyUnit || ''}</td>
-                      <td style="text-align: center;">${totalWeight.toFixed(1)}</td>
-                      <td style="text-align: right;">$${totalLabor}</td>
-                      <td style="text-align: right;">$${calculateItemTotal(item).toLocaleString()}</td>
-                    </tr>`;
-                  }).join('')}
-                  <tr class="totals">
-                    <td>សរុប / TOTAL</td>
-                    <td style="text-align: center;">${totals.totalQty}</td>
-                    <td style="text-align: center;">${totals.totalWeight.toFixed(1)}</td>
-                    <td style="text-align: right;">$${totals.totalLabor}</td>
-                    <td></td>
-                  </tr>
-                </tbody>
-              </table>
-              
-              <div class="grand-total">
-                សរុបរួម / GRAND TOTAL: $${calculateGrandTotal().toLocaleString()}
-              </div>
-              
-              <div class="disclaimer">
-                <p style="font-size: 18px;">អ្នកទិញបានមើល ថ្លឹង នឹងយល់ព្រមតាមទំងន់ខាងលើត្រឹមត្រូវ។</p>
-              </div>
-              
-              ${qrCodeImage ? `<div style="text-align: center; margin-top: 30px;"><img src="${qrCodeImage}" style="width: auto; height: 220px;" /></div>` : ''}
-            </body>
-            </html>`;
+        <div class="info">
+          <p><strong>ឈ្មោះអតិថិជន / Client Name: <span style="font-size: 22px;">${formData.clientName}</span></strong></p>
+          <p><strong>ថ្ងៃទី / Date:</strong> ${formatDate(formData.date)}</p>
+          <p><strong>ផ្លាទីនទឹក / Gold Mix:</strong> ${goldMixOptions.find(o => o.value === formData.goldMix)?.label || ''}</p>
+          <p><strong>ហាងឆេង / Gold Market Price:</strong> $${formData.goldPrice}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>ប្រភេទគ្រឿង<br/>Type of Goods</th>
+              <th style="text-align: center;">ចំនួន<br/>Qty</th>
+              <th style="text-align: center;">ទំងន់<br/>Weight (l)</th>
+              <th style="text-align: right;">ឈ្នួល<br/>Labor</th>
+              <th style="text-align: right;">សរុប<br/>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${formData.items.map(item => {
+              const totalWeight = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.weight) || 0), 0);
+              const totalLabor = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.laborCost) || 0), 0);
+              return `
+              <tr>
+                <td>${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}</td>
+                <td style="text-align: center;">${item.quantity}${item.qtyUnit || ''}</td>
+                <td style="text-align: center;">${totalWeight.toFixed(1)}</td>
+                <td style="text-align: right;">$${totalLabor}</td>
+                <td style="text-align: right;">$${calculateItemTotal(item).toLocaleString()}</td>
+              </tr>`;
+            }).join('')}
+            <tr class="totals">
+              <td>សរុប / TOTAL</td>
+              <td style="text-align: center;">${totals.totalQty}</td>
+              <td style="text-align: center;">${totals.totalWeight.toFixed(1)}</td>
+              <td style="text-align: right;">$${totals.totalLabor}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="grand-total">
+          សរុបរួម / GRAND TOTAL: $${calculateGrandTotal().toLocaleString()}
+        </div>
+        
+        <div class="disclaimer">
+          <p style="font-size: 18px;">អ្នកទិញបានមើល ថ្លឹង នឹងយល់ព្រមតាមទំងន់ខាងលើត្រឹមត្រូវ។</p>
+        </div>
+        
+        ${qrCodeImage ? `<div style="text-align: center; margin-top: 30px;"><img src="${qrCodeImage}" style="width: auto; height: 220px;" /></div>` : ''}
+      </body>
+      </html>`;
 
-            // Create filename with date_name_goods
-            const goodsList = formData.items
-              .map(item => item.itemName)
-              .filter(name => name) // Remove empty names
-              .join('_');
-            const now = new Date();
-            const timeSaved =
-              `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
-            const fileName = `${formatDate(formData.date).replace(/\//g, '-')}_${formData.clientName}_${goodsList}_${timeSaved}`;
-            
-            const result = await ipcRenderer.invoke('save-pdf', {
-              clientName: formData.clientName,
-              fileName: fileName,
-              basePath: savePath,
-              htmlContent: htmlContent
-            });
-            
-            if (result && result.success) {
-              alert(`វិក័យប័ត្រត្រូវបានរក្សាទុក!\nInvoice saved successfully!\n\nPath: ${result.path}`);
+      // Create filename with date_name_goods
+        const goodsList = formData.items
+          .map(item => item.itemName)
+          .filter(name => name)
+          .join('_');
+        const now = new Date();
+        const timeSaved =
+          `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
+        const fileName = `${formatDate(formData.date).replace(/\//g, '-')}_${formData.clientName}_${goodsList}_${timeSaved}`;
+        
+        const result = await ipcRenderer.invoke('save-pdf', {
+          clientName: formData.clientName,
+          fileName: fileName,
+          basePath: savePath,
+          htmlContent: htmlContent
+        });
+                  
+        if (result && result.success) {
+          // Success popup with Open/Close options
+          const popup = document.createElement('div');
+          popup.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+              <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; text-align: center;">
+                <div style="font-size: 48px; color: #16a34a; margin-bottom: 15px;">✓</div>
+                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">រក្សាទុកជោគជ័យ! / Saved Successfully!</h3>
+                <p style="margin-bottom: 10px; font-size: 14px; color: #666;">Path: ${result.path}</p>
+                <p style="margin-bottom: 20px;">តើអ្នកចង់បើកឯកសារដើម្បីបោះពុម្ពទេ?<br/>Do you want to open the file to print?</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                  <button id="closeBtn" style="background: #6b7280; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Close</button>
+                  <button id="openBtn" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Open</button>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(popup);
+          
+          document.getElementById('closeBtn').onclick = () => {
+            popup.remove();
+          };
+          
+          document.getElementById('openBtn').onclick = async () => {
+            try {
+              await ipcRenderer.invoke('open-file', result.path);
+              popup.remove();
+            } catch (error) {
+              alert('Error opening file: ' + error.message);
+            }
+          };
+              
             } else {
-              alert(`បរាជ័យក្នុងការរក្សាទុក!\nFailed to save: ${result?.error || 'Unknown error'}`);
+              // Error popup
+              const popup = document.createElement('div');
+              popup.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+                  <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
+                    <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
+                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">បរាជ័យក្នុងការរក្សាទុក! / Save Failed!</h3>
+                    <p style="margin-bottom: 20px;">${result?.error || 'Unknown error'}</p>
+                    <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
+                  </div>
+                </div>
+              `;
+              document.body.appendChild(popup);
             }
           } else {
             alert('Save feature only works in desktop app');
           }
         } catch (error) {
           console.error('Save error:', error);
-          alert(`Error saving receipt: ${error.message}`);
+          const popup = document.createElement('div');
+          popup.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+              <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
+                <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
+                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Error!</h3>
+                <p style="margin-bottom: 20px;">${error.message}</p>
+                <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(popup);
         }
       };
 
