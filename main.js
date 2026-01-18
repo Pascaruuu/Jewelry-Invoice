@@ -2,6 +2,12 @@ const { app, BrowserWindow, ipcMain, dialog} = require('electron');
 const fs = require('fs');
 const path = require('path');
 
+// Load invoice template
+function loadInvoiceTemplate() {
+  const templatePath = path.join(__dirname, 'invoice-template.html');
+  return fs.readFileSync(templatePath, 'utf8');
+}
+
 app.disableHardwareAcceleration();
 
 function createWindow() {
@@ -39,9 +45,9 @@ function createWindow() {
   win.setMenuBarVisibility(false);
 }
 
-// PDF Save Handler (updated)
+// PDF Save Handler
 ipcMain.handle('save-pdf', async (event, data) => {
-  const { clientName, fileName, htmlContent, basePath } = data;
+  const { clientName, date, htmlContent, basePath } = data;
   
   if (!basePath) {
     return { success: false, error: 'No save path selected' };
@@ -54,13 +60,14 @@ ipcMain.handle('save-pdf', async (event, data) => {
     fs.mkdirSync(clientFolder, { recursive: true });
   }
   
-  // Save HTML file with new naming format
-  const fullFileName = `${fileName}.html`;
-  const filePath = path.join(clientFolder, fullFileName);
+  // Save HTML file
+  const fileName = `${clientName}_${date}.html`;
+  const filePath = path.join(clientFolder, fileName);
   fs.writeFileSync(filePath, htmlContent);
   
   return { success: true, path: filePath };
 });
+
 
 // Select Save Path Handler
 ipcMain.handle('select-save-path', async () => {
@@ -81,6 +88,24 @@ ipcMain.handle('open-file', async (event, filePath) => {
   try {
     const { shell } = require('electron');
     await shell.openPath(filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Restart Print Spooler Handler
+ipcMain.handle('restart-print-spooler', async () => {
+  try {
+    const { exec } = require('child_process');
+    const util = require('util');
+    const execPromise = util.promisify(exec);
+    
+    // Use PowerShell to restart the service with elevation
+    const command = `powershell -Command "Start-Process powershell -ArgumentList 'Restart-Service -Name Spooler -Force' -Verb RunAs"`;
+    
+    await execPromise(command);
+    
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };

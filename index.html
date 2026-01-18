@@ -72,6 +72,7 @@
       const [activeTab, setActiveTab] = useState(0);
       const [savePath, setSavePath] = useState('');
       const [qrCodeImage, setQrCodeImage] = useState('');
+      const [paymentHistory, setPaymentHistory] = useState([]);
       
       const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -138,6 +139,11 @@
         const savedQR = localStorage.getItem('jewelryQRCode');
         if (savedQR) {
           setQrCodeImage(savedQR);
+        }
+
+        const savedPaymentHistory = localStorage.getItem('jewelryPaymentHistory');
+        if (savedPaymentHistory) {
+          setPaymentHistory(JSON.parse(savedPaymentHistory));
         }
 
         // Load settings
@@ -214,9 +220,7 @@
           const updatedClients = [...clients, newClientName.trim()];
           setClients(updatedClients);
           localStorage.setItem('jewelryClients', JSON.stringify(updatedClients));
-          setFormData({ ...formData, clientName: newClientName.trim() });
           setNewClientName('');
-          setShowClientForm(false);
         }
       };
 
@@ -261,7 +265,29 @@
 
       const loadDraft = (index) => {
         setActiveTab(index);
-        setFormData(drafts[index]);
+        const draft = drafts[index];
+        
+        // Ensure all items have the correct structure
+        const normalizedItems = draft.items.map(item => ({
+          itemName: item.itemName || '',
+          quantity: item.quantity || '1',
+          qtyUnit: item.qtyUnit || '',
+          productCode: item.productCode || '',
+          subItems: Array.isArray(item.subItems) && item.subItems.length > 0 
+            ? item.subItems.map(sub => ({
+                weight: sub.weight || '',
+                laborCost: sub.laborCost || ''
+              }))
+            : [{ weight: '', laborCost: '' }]
+        }));
+        
+        setFormData({
+          date: draft.date || new Date().toISOString().split('T')[0],
+          clientName: draft.clientName || '',
+          goldMix: draft.goldMix || '',
+          goldPrice: draft.goldPrice || '',
+          items: normalizedItems
+        });
       };
 
       const deleteDraft = (index) => {
@@ -272,7 +298,27 @@
           setActiveTab(Math.max(0, newDrafts.length - 1));
         }
         if (newDrafts.length > 0) {
-          setFormData(newDrafts[Math.min(activeTab, newDrafts.length - 1)]);
+          const draftToLoad = newDrafts[Math.min(activeTab, newDrafts.length - 1)];
+          const normalizedItems = draftToLoad.items.map(item => ({
+            itemName: item.itemName || '',
+            quantity: item.quantity || '1',
+            qtyUnit: item.qtyUnit || '',
+            productCode: item.productCode || '',
+            subItems: Array.isArray(item.subItems) && item.subItems.length > 0 
+              ? item.subItems.map(sub => ({
+                  weight: sub.weight || '',
+                  laborCost: sub.laborCost || ''
+                }))
+              : [{ weight: '', laborCost: '' }]
+          }));
+          
+          setFormData({
+            date: draftToLoad.date || new Date().toISOString().split('T')[0],
+            clientName: draftToLoad.clientName || '',
+            goldMix: draftToLoad.goldMix || '',
+            goldPrice: draftToLoad.goldPrice || '',
+            items: normalizedItems
+          });
         } else {
           setFormData({
             date: new Date().toISOString().split('T')[0],
@@ -550,6 +596,24 @@
         });
                   
         if (result && result.success) {
+          // Add to payment history
+          const orderSummary = formData.items
+            .map(item => `${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}`)
+            .filter(Boolean)
+            .join(', ');
+          
+          const paymentRecord = {
+            id: Date.now(),
+            clientName: formData.clientName,
+            orders: orderSummary,
+            savedTime: new Date().toLocaleString(),
+            total: calculateGrandTotal(),
+            status: 'pending',
+            filePath: result.path
+          };
+          
+          addPaymentRecord(paymentRecord);
+          
           // Success popup with Open/Close options
           const popup = document.createElement('div');
           popup.innerHTML = `
@@ -672,14 +736,53 @@
         saveGoldMixOptions(updated);
       };
 
-      const removeGoldMix = (valueToRemove) => {
+const removeGoldMix = (valueToRemove) => {
         const updated = goldMixOptions.filter(m => m.value !== valueToRemove);
         saveGoldMixOptions(updated);
       };
 
+      const addPaymentRecord = (record) => {
+        const updated = [record, ...paymentHistory];
+        setPaymentHistory(updated);
+        localStorage.setItem('jewelryPaymentHistory', JSON.stringify(updated));
+      };
+
+      const updatePaymentStatus = (id, status) => {
+        const updated = paymentHistory.map(record => 
+          record.id === id ? { ...record, status } : record
+        );
+        setPaymentHistory(updated);
+        localStorage.setItem('jewelryPaymentHistory', JSON.stringify(updated));
+      };
+
+      const deletePaymentRecord = (id) => {
+        const updated = paymentHistory.filter(record => record.id !== id);
+        setPaymentHistory(updated);
+        localStorage.setItem('jewelryPaymentHistory', JSON.stringify(updated));
+      };
+
+      const restartPrintSpooler = async () => {
+        try {
+          if (typeof require !== 'undefined') {
+            const { ipcRenderer } = require('electron');
+            const result = await ipcRenderer.invoke('restart-print-spooler');
+            
+            if (result.success) {
+              alert('✓ Print Spooler restarted successfully!\nYou can now try printing again.');
+            } else {
+              alert('✗ Failed to restart Print Spooler.\nPlease try manually via services.msc');
+            }
+          } else {
+            alert('This feature only works in the desktop app');
+          }
+        } catch (error) {
+          alert('Error: ' + error.message);
+        }
+      };
+
       const totals = calculateTotals();
 
-      if (currentPage === 'settings') {
+if (currentPage === 'payment') {
         return (
           <div className="min-h-screen bg-gray-50 flex">
             {/* Sidebar */}
@@ -694,12 +797,199 @@
                   📄 Invoice
                 </button>
                 <button
-                  onClick={() => setCurrentPage('settings')}
+                  onClick={() => setCurrentPage('payment')}
                   className="w-full text-left px-4 py-2 rounded bg-blue-100 text-blue-700 font-semibold"
+                >
+                  💰 Payment History
+                </button>
+                <button
+                  onClick={() => setCurrentPage('settings')}
+                  className="w-full text-left px-4 py-2 rounded hover:bg-gray-100"
                 >
                   ⚙️ Settings
                 </button>
+                <button
+                  onClick={restartPrintSpooler}
+                  className="w-full text-left px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
+                >
+                  🖨️ Fix Printer
+                </button>
               </div>
+
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-semibold">Drafts</span>
+                  <button
+                    onClick={addNewDraft}
+                    className="w-6 h-6 bg-green-600 text-white rounded flex items-center justify-center hover:bg-green-700"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {drafts.map((draft, idx) => {
+                    const orderItems = draft.items.map(i => i.itemName).filter(Boolean).join(', ');
+                    const draftName = `${idx + 1} - ${draft.clientName || 'New'}${orderItems ? `_${orderItems}` : ''}`;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          loadDraft(idx);
+                          setCurrentPage('invoice');
+                        }}
+                        className={`w-full text-left px-2 py-1 text-xs rounded flex items-center justify-between group ${
+                          activeTab === idx ? 'bg-blue-100' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className="truncate">{draftName}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDraft(idx);
+                          }}
+                          className="opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={12} />
+                        </button>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Payment History Content */}
+            <div className="flex-1 p-8">
+              <h2 className="text-2xl font-bold mb-6">ប្រវត្តិការទូទាត់ / Payment History</h2>
+
+              {/* Pending Section */}
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold mb-4 text-yellow-700">⏳ Pending Orders</h3>
+                <div className="bg-white rounded-lg shadow">
+                  {paymentHistory.filter(r => r.status === 'pending').length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      No pending orders
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {paymentHistory.filter(r => r.status === 'pending').map((record) => (
+                        <div key={record.id} className="p-4 hover:bg-gray-50 flex items-center gap-4">
+                          <div className="flex-1">
+                            <div className="font-semibold text-lg">{record.clientName}</div>
+                            <div className="text-sm text-gray-600">{record.orders}</div>
+                            <div className="text-xs text-gray-500 mt-1">{record.savedTime}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-blue-600">${record.total.toLocaleString()}</div>
+                          </div>
+                          <div className="flex gap-2 items-center">
+                            <button
+                              onClick={() => updatePaymentStatus(record.id, 'paid')}
+                              className="p-2 bg-green-600 text-white rounded hover:bg-green-700 text-xl"
+                              title="Mark as Paid"
+                            >
+                              ✓
+                            </button>
+                            <div className="px-4 py-2 rounded border-2 bg-yellow-100 text-yellow-800 border-yellow-300 font-semibold text-sm min-w-28 text-center">
+                              PENDING
+                            </div>
+                            <button
+                              onClick={() => updatePaymentStatus(record.id, 'cancelled')}
+                              className="p-2 bg-red-600 text-white rounded hover:bg-red-700 text-xl"
+                              title="Cancel"
+                            >
+                              ✗
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* History Section */}
+              <div>
+                <h3 className="text-xl font-semibold mb-4 text-gray-700">📋 History</h3>
+                <div className="bg-white rounded-lg shadow">
+                  {paymentHistory.filter(r => r.status !== 'pending').length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      No history yet
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {paymentHistory.filter(r => r.status !== 'pending').map((record) => {
+                        const statusColors = {
+                          paid: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300' },
+                          cancelled: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' }
+                        };
+                        const colors = statusColors[record.status];
+                        
+                        return (
+                          <div key={record.id} className="p-4 hover:bg-gray-50 flex items-center gap-4">
+                            <div className="flex-1">
+                              <div className="font-semibold text-lg">{record.clientName}</div>
+                              <div className="text-sm text-gray-600">{record.orders}</div>
+                              <div className="text-xs text-gray-500 mt-1">{record.savedTime}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-blue-600">${record.total.toLocaleString()}</div>
+                            </div>
+                            <div className={`px-4 py-2 rounded border-2 ${colors.bg} ${colors.text} ${colors.border} font-semibold text-sm min-w-28 text-center`}>
+                              {record.status.toUpperCase()}
+                            </div>
+                            <button
+                              onClick={() => deletePaymentRecord(record.id)}
+                              className="p-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                              title="Delete"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (currentPage === 'settings') {
+        return (
+          <div className="min-h-screen bg-gray-50 flex">
+            {/* Sidebar */}
+            <div className="w-64 bg-white shadow-lg p-4">
+              <h1 className="text-xl font-bold mb-6">វិក័យប័ត្រ / Invoice</h1>
+              
+            <div className="space-y-2 mb-6">
+              <button
+                onClick={() => setCurrentPage('invoice')}
+                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'invoice' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
+              >
+                📄 Invoice
+              </button>
+              <button
+                onClick={() => setCurrentPage('payment')}
+                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'payment' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
+              >
+                💰 Payment History
+              </button>
+              <button
+                onClick={() => setCurrentPage('settings')}
+                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'settings' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
+              >
+                ⚙️ Settings
+              </button>
+              <button
+                onClick={restartPrintSpooler}
+                className="w-full text-left px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
+              >
+                🖨️ Fix Printer
+              </button>
+            </div>
 
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-2">
@@ -758,6 +1048,51 @@
                     Browse...
                   </button>
                   <span className="text-sm text-gray-600">{savePath || 'Not set'}</span>
+                </div>
+              </div>
+
+              {/* Client Management */}
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h3 className="text-lg font-semibold mb-4">ឈ្មោះអតិថិជន / Client Names</h3>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newClientName.trim()) {
+                        saveClient();
+                      }
+                    }}
+                    placeholder="Add new client name..."
+                    className="flex-1 px-3 py-2 border rounded"
+                  />
+                  <button
+                    onClick={saveClient}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {clients.length === 0 ? (
+                    <p className="text-sm text-gray-500">No clients added yet</p>
+                  ) : (
+                    clients.map((client, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded"
+                      >
+                        {client}
+                        <button
+                          onClick={() => removeClient(client)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -1058,18 +1393,30 @@
             <div className="space-y-2 mb-6">
               <button
                 onClick={() => setCurrentPage('invoice')}
-                className="w-full text-left px-4 py-2 rounded bg-blue-100 text-blue-700 font-semibold"
+                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'invoice' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
               >
                 📄 Invoice
               </button>
               <button
+                onClick={() => setCurrentPage('payment')}
+                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'payment' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
+              >
+                💰 Payment History
+              </button>
+              <button
                 onClick={() => setCurrentPage('settings')}
-                className="w-full text-left px-4 py-2 rounded hover:bg-gray-100"
+                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'settings' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
               >
                 ⚙️ Settings
               </button>
+              <button
+                onClick={restartPrintSpooler}
+                className="w-full text-left px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
+              >
+                🖨️ Fix Printer
+              </button>
             </div>
-
+            
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-semibold">Drafts</span>
@@ -1158,63 +1505,19 @@
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     ឈ្មោះអតិថិជន / Client Name
                   </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={formData.clientName}
-                      onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">ជ្រើសរើសអតិថិជន... / Select client...</option>
-                      {clients.map((client, idx) => (
-                        <option key={idx} value={client}>{client}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => setShowClientForm(!showClientForm)}
-                      className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                      <Plus size={18} />
-                    </button>
-                  </div>
-                {showClientForm && (
-                <div className="mt-2 flex gap-2">
-                  <input
-                    type="text"
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && saveClient()}
-                    placeholder="ឈ្មោះអតិថិជនថ្មី / New client name"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={saveClient}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  <select
+                    value={formData.clientName}
+                    onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
                   >
-                    រក្សាទុក / Save
-                  </button>
+                    <option value="">ជ្រើសរើសអតិថិជន... / Select client...</option>
+                    {clients.map((client, idx) => (
+                      <option key={idx} value={client}>{client}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Add new clients in Settings</p>
                 </div>
-              )}
-              
-              {clients.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {clients.map((client, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm"
-                    >
-                      {client}
-                      <button
-                        onClick={() => removeClient(client)}
-                        className="hover:text-red-600"
-                      >
-                        <X size={14} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
