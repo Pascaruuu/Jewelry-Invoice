@@ -245,10 +245,112 @@
     // END OF TEMPLATE SYSTEM
     // ======================================================================
 
+    // ======================================================================
+    // HEADER COMPONENT
+    // ======================================================================
+    function Header({ formData, setFormData, saveDraft, handleSaveReceipt }) {
+      return (
+        <div className="fixed top-0 left-0 right-0 bg-white shadow-md border-b border-gray-200 z-40">
+          <div className="flex items-center justify-between px-6 py-4">
+            {/* Left: Title & Date */}
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-gray-800">
+                វិក័យប័ត្រ / Invoice
+              </h1>
+              <input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Right: Action Buttons */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={saveDraft}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-2"
+              >
+                <Save size={18} />
+                រក្សាទុក / Save Draft
+              </button>
+              <button
+                onClick={handleSaveReceipt}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+              >
+                <FolderOpen size={18} />
+                រក្សាទុក PDF / Save as PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    // ======================================================================
+    // GROUPED TYPE SELECTOR POPUP COMPONENT
+    // ======================================================================
+    function GroupedTypeSelector({ groups, onSelect, onClose }) {
+      // Split groups into rows of 3
+      const rows = [];
+      for (let i = 0; i < groups.length; i += 3) {
+        rows.push(groups.slice(i, i + 3));
+      }
+
+      return (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={onClose}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">ជ្រើសរើសប្រភេទគ្រឿង / Select Type of Goods</h3>
+              <button
+                onClick={onClose}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {rows.map((row, rowIdx) => (
+                <div key={rowIdx} className="grid grid-cols-3 gap-4">
+                  {row.map((group, colIdx) => (
+                    <div key={colIdx} className="border rounded-lg p-4 bg-gray-50">
+                      <h4 className="font-semibold text-lg mb-3 text-blue-700 border-b pb-2">
+                        {group.name}
+                      </h4>
+                      <div className="space-y-1">
+                        {group.items.map((item, itemIdx) => (
+                          <button
+                            key={itemIdx}
+                            onClick={() => {
+                              onSelect(item);
+                              onClose();
+                            }}
+                            className="w-full text-left px-3 py-2 rounded hover:bg-blue-100 transition-colors text-sm"
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
     function Sidebar({ currentPage, setCurrentPage, drafts, activeTab, loadDraft, deleteDraft, addNewDraft, restartPrintSpooler }) {
       return (
-        <div className="w-64 bg-white shadow-lg p-4">
-          <h1 className="text-xl font-bold mb-6">វិក័យប័ត្រ / Invoice</h1>
+        <div className="fixed left-0 top-20 bottom-0 w-64 bg-white shadow-lg p-4 overflow-y-auto">
           
           <div className="space-y-2 mb-6">
             <button
@@ -332,6 +434,7 @@
       const [savePath, setSavePath] = useState('');
       const [qrCodeImage, setQrCodeImage] = useState('');
       const [paymentHistory, setPaymentHistory] = useState([]);
+      const [theme, setTheme] = useState('light');
       
       const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -348,23 +451,23 @@
         }]
       });
 
-      const [itemTypeOptions, setItemTypeOptions] = useState([
-        'ខ្សែក SVZ',
-        'ខ្សែដៃ BZ',
-        'KZ',
-        'PZ',
-        'EZ',
-        'RZ',
-        'ខ្សែក',
-        'ខ្សែដៃ',
-        'កងដៃ',
-        'ក្រវឹល',
-        'កាវ',
-        'បន្តោង',
-        'ចិញ្ចៀន',
-        'កាំខ្សែដៃ',
-        'កាំខ្សែក'
+      const [itemTypeGroups, setItemTypeGroups] = useState([
+        {
+          name: '3D Series',
+          items: ['ខ្សែក SVZ', 'ខ្សែដៃ BZ']
+        },
+        {
+          name: 'Molded Series',
+          items: ['KZ', 'PZ', 'EZ', 'RZ']
+        },
+        {
+          name: 'Client Provided',
+          items: ['ខ្សែក', 'ខ្សែដៃ', 'កងដៃ', 'ក្រវឹល', 'កាវ', 'បន្តោង', 'ចិញ្ចៀន']
+        }
       ]);
+
+      const [showTypeSelector, setShowTypeSelector] = useState(false);
+      const [currentItemIndex, setCurrentItemIndex] = useState(null);
 
       const [goldMixOptions, setGoldMixOptions] = useState([
         { label: '50%', value: '50' },
@@ -381,6 +484,11 @@
       const [qtyUnitOptions, setQtyUnitOptions] = useState(['', 'P', 'ដុំ', 'គូ']);
 
       useEffect(() => {
+        const savedTheme = localStorage.getItem('jewelryTheme');
+        if (savedTheme) {
+          setTheme(savedTheme);
+        }
+
         const savedClients = localStorage.getItem('jewelryClients');
         if (savedClients) {
           setClients(JSON.parse(savedClients));
@@ -407,9 +515,9 @@
         }
 
         // Load settings
-        const savedItemTypes = localStorage.getItem('jewelryItemTypes');
-        if (savedItemTypes) {
-          setItemTypeOptions(JSON.parse(savedItemTypes));
+        const savedItemTypeGroups = localStorage.getItem('jewelryItemTypeGroups');
+        if (savedItemTypeGroups) {
+          setItemTypeGroups(JSON.parse(savedItemTypeGroups));
         }
 
         const savedGoldMix = localStorage.getItem('jewelryGoldMix');
@@ -422,6 +530,40 @@
           setQtyUnitOptions(JSON.parse(savedQtyUnits));
         }
       }, []);
+
+      // Group management functions
+      const saveItemTypeGroups = (newGroups) => {
+        setItemTypeGroups(newGroups);
+        localStorage.setItem('jewelryItemTypeGroups', JSON.stringify(newGroups));
+      };
+
+      const addGroup = (groupName) => {
+        const updated = [...itemTypeGroups, { name: groupName, items: [] }];
+        saveItemTypeGroups(updated);
+      };
+
+      const removeGroup = (groupIndex) => {
+        const updated = itemTypeGroups.filter((_, i) => i !== groupIndex);
+        saveItemTypeGroups(updated);
+      };
+
+      const renameGroup = (groupIndex, newName) => {
+        const updated = [...itemTypeGroups];
+        updated[groupIndex].name = newName;
+        saveItemTypeGroups(updated);
+      };
+
+      const addItemToGroup = (groupIndex, itemName) => {
+        const updated = [...itemTypeGroups];
+        updated[groupIndex].items.push(itemName);
+        saveItemTypeGroups(updated);
+      };
+
+      const removeItemFromGroup = (groupIndex, itemIndex) => {
+        const updated = [...itemTypeGroups];
+        updated[groupIndex].items = updated[groupIndex].items.filter((_, i) => i !== itemIndex);
+        saveItemTypeGroups(updated);
+      };
 
       const handleQRUpload = (e) => {
         const file = e.target.files[0];
@@ -881,6 +1023,12 @@
         });
       };
 
+      const toggleTheme = () => {
+        const newTheme = theme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+        localStorage.setItem('jewelryTheme', newTheme);
+      };
+
       const saveItemTypeOptions = (newOptions) => {
         setItemTypeOptions(newOptions);
         localStorage.setItem('jewelryItemTypes', JSON.stringify(newOptions));
@@ -971,25 +1119,69 @@
         }
       };
 
+      // Theme configuration
+      const themeColors = {
+        light: {
+          bg: 'bg-gray-50',
+          cardBg: 'bg-white',
+          text: 'text-gray-800',
+          textSecondary: 'text-gray-600',
+          border: 'border-gray-300',
+          accent: 'bg-blue-600',
+          accentHover: 'hover:bg-blue-700',
+          accentText: 'text-blue-600',
+          sidebarBg: 'bg-white',
+          inputBg: 'bg-white',
+          headerBg: 'bg-white',
+          headerBorder: 'border-gray-200'
+        },
+        dark: {
+          bg: 'bg-[#24293E]',
+          cardBg: 'bg-[#2D3250]',
+          text: 'text-[#F4F5FC]',
+          textSecondary: 'text-[#CCCCCC]',
+          border: 'border-[#3D4463]',
+          accent: 'bg-[#8EBBFF]',
+          accentHover: 'hover:bg-[#7AABEF]',
+          accentText: 'text-[#8EBBFF]',
+          sidebarBg: 'bg-[#2D3250]',
+          inputBg: 'bg-[#363C54]',
+          headerBg: 'bg-[#2D3250]',
+          headerBorder: 'border-[#3D4463]'
+        }
+      };
+      
+      const currentTheme = themeColors[theme];
+
       const totals = calculateTotals();
 
       if (currentPage === 'payment') {
         return (
-          <div className="min-h-screen bg-gray-50 flex">
-            <Sidebar 
-              currentPage={currentPage}
-              setCurrentPage={setCurrentPage}
-              drafts={drafts}
-              activeTab={activeTab}
-              loadDraft={loadDraft}
-              deleteDraft={deleteDraft}
-              addNewDraft={addNewDraft}
-              restartPrintSpooler={restartPrintSpooler}
+          <div className="min-h-screen bg-gray-50">
+            {/* Header */}
+            <Header 
+              formData={formData}
+              setFormData={setFormData}
+              saveDraft={saveDraft}
+              handleSaveReceipt={handleSaveReceipt}
             />
 
-            {/* Payment History Content */}
-            <div className="flex-1 p-8">
-              <h2 className="text-2xl font-bold mb-6">ប្រវត្តិការទូទាត់ / Payment History</h2>
+            {/* Main Layout */}
+            <div className="flex pt-20">
+              <Sidebar 
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+                drafts={drafts}
+                activeTab={activeTab}
+                loadDraft={loadDraft}
+                deleteDraft={deleteDraft}
+                addNewDraft={addNewDraft}
+                restartPrintSpooler={restartPrintSpooler}
+              />
+
+              {/* Payment History Content */}
+              <div className="flex-1 ml-64 p-8">
+                <h2 className="text-2xl font-bold mb-6">ប្រវត្តិការទូទាត់ / Payment History</h2>
 
               {/* Pending Section */}
               <div className="mb-8">
@@ -1083,26 +1275,37 @@
               </div>
             </div>
           </div>
+          </div>
         );
       }
 
       if (currentPage === 'settings') {
         return (
-          <div className="min-h-screen bg-gray-50 flex">
-            <Sidebar 
-              currentPage={currentPage}
-              setCurrentPage={setCurrentPage}
-              drafts={drafts}
-              activeTab={activeTab}
-              loadDraft={loadDraft}
-              deleteDraft={deleteDraft}
-              addNewDraft={addNewDraft}
-              restartPrintSpooler={restartPrintSpooler}
+          <div className="min-h-screen bg-gray-50">
+            {/* Header */}
+            <Header 
+              formData={formData}
+              setFormData={setFormData}
+              saveDraft={saveDraft}
+              handleSaveReceipt={handleSaveReceipt}
             />
 
-            {/* Settings Content */}
-            <div className="flex-1 p-8">
-              <h2 className="text-2xl font-bold mb-6">ការកំណត់ / Settings</h2>
+            {/* Main Layout */}
+            <div className="flex pt-20">
+              <Sidebar 
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+                drafts={drafts}
+                activeTab={activeTab}
+                loadDraft={loadDraft}
+                deleteDraft={deleteDraft}
+                addNewDraft={addNewDraft}
+                restartPrintSpooler={restartPrintSpooler}
+              />
+
+              {/* Settings Content */}
+              <div className="flex-1 ml-64 p-8">
+                <h2 className="text-2xl font-bold mb-6">ការកំណត់ / Settings</h2>
 
               {/* Save Path */}
               <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -1177,51 +1380,108 @@
                 )}
               </div>
 
-              {/* Type of Goods */}
+              {/* GROUPED Type of Goods */}
               <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h3 className="text-lg font-semibold mb-4">ប្រភេទគ្រឿង / Type of Goods</h3>
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="text"
-                    id="newItemType"
-                    placeholder="Add new type..."
-                    className="flex-1 px-3 py-2 border rounded"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && e.target.value.trim()) {
-                        addItemType(e.target.value.trim());
-                        e.target.value = '';
-                      }
-                    }}
-                  />
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">ប្រភេទគ្រឿង / Type of Goods (Grouped)</h3>
                   <button
                     onClick={() => {
-                      const input = document.getElementById('newItemType');
-                      if (input.value.trim()) {
-                        addItemType(input.value.trim());
-                        input.value = '';
+                      const groupName = prompt('Enter group name:');
+                      if (groupName && groupName.trim()) {
+                        addGroup(groupName.trim());
                       }
                     }}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
                   >
-                    Add
+                    <Plus size={14} />
+                    Add Group
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {itemTypeOptions.map((type, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded"
-                    >
-                      {type}
-                      <button
-                        onClick={() => removeItemType(type)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <X size={14} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+
+                {itemTypeGroups.length === 0 ? (
+                  <p className="text-sm text-gray-500">No groups yet. Click "Add Group" to create one.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {itemTypeGroups.map((group, groupIdx) => (
+                      <div key={groupIdx} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-semibold text-md text-blue-700">{group.name}</h4>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const newName = prompt('Rename group:', group.name);
+                                if (newName && newName.trim()) {
+                                  renameGroup(groupIdx, newName.trim());
+                                }
+                              }}
+                              className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                            >
+                              Rename
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Delete group "${group.name}"?`)) {
+                                  removeGroup(groupIdx);
+                                }
+                              }}
+                              className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                            >
+                              Delete Group
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 mb-3">
+                          <input
+                            type="text"
+                            id={`newItem-${groupIdx}`}
+                            placeholder="Add new item..."
+                            className="flex-1 px-3 py-2 border rounded text-sm"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && e.target.value.trim()) {
+                                addItemToGroup(groupIdx, e.target.value.trim());
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              const input = document.getElementById(`newItem-${groupIdx}`);
+                              if (input.value.trim()) {
+                                addItemToGroup(groupIdx, input.value.trim());
+                                input.value = '';
+                              }
+                            }}
+                            className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                          >
+                            Add
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          {group.items.length === 0 ? (
+                            <p className="text-xs text-gray-500">No items in this group yet</p>
+                          ) : (
+                            group.items.map((item, itemIdx) => (
+                              <span
+                                key={itemIdx}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-white border rounded text-sm"
+                              >
+                                {item}
+                                <button
+                                  onClick={() => removeItemFromGroup(groupIdx, itemIdx)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Quantity Units */}
@@ -1327,6 +1587,7 @@
                 </div>
               </div>
             </div>
+          </div>
           </div>
         );
       }
@@ -1458,50 +1719,48 @@
         );
       }
 
+      // INVOICE PAGE - WITH HEADER
       return (
-        <div className="min-h-screen bg-gray-50 flex">
-          <Sidebar 
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            drafts={drafts}
-            activeTab={activeTab}
-            loadDraft={loadDraft}
-            deleteDraft={deleteDraft}
-            addNewDraft={addNewDraft}
-            restartPrintSpooler={restartPrintSpooler}
+        <div className="min-h-screen bg-gray-50">
+          {/* Header - Fixed at top */}
+          <Header 
+            formData={formData}
+            setFormData={setFormData}
+            saveDraft={saveDraft}
+            handleSaveReceipt={handleSaveReceipt}
           />
 
-          {/* Main Content */}
-          <div className="flex-1 p-8">
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold text-gray-800">វិក័យប័ត្រ / Invoice</h1>
-                    <input
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                      className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={saveDraft}
-                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-2"
-                    >
-                      <Save size={18} />
-                      រក្សាទុក / Save Draft
-                    </button>
-                    <button
-                      onClick={handleSaveReceipt}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
-                    >
-                      <FolderOpen size={18} />
-                      រក្សាទុក PDF / Save as PDF
-                    </button>
-                  </div>
-                </div>
+          {/* Main Layout Container */}
+          <div className="flex pt-20">
+            {/* Sidebar - Fixed on left */}
+            <Sidebar 
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              drafts={drafts}
+              activeTab={activeTab}
+              loadDraft={loadDraft}
+              deleteDraft={deleteDraft}
+              addNewDraft={addNewDraft}
+              restartPrintSpooler={restartPrintSpooler}
+            />
+
+            {showTypeSelector && (
+              <GroupedTypeSelector
+                groups={itemTypeGroups}
+                onSelect={(selectedItem) => {
+                  updateItem(currentItemIndex, 'itemName', selectedItem);
+                }}
+                onClose={() => {
+                  setShowTypeSelector(false);
+                  setCurrentItemIndex(null);
+                }}
+              />
+            )}
+
+            {/* Main Content Area - with left margin for sidebar */}
+            <div className="flex-1 ml-64 p-8">
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-white rounded-lg shadow-sm p-6">
 
               {drafts.length === 0 && (
                 <div className="mb-4">
@@ -1587,16 +1846,15 @@
                   <div className="flex gap-2 items-start mb-3">
                     <div className="flex-1">
                       <label className="block text-xs font-medium text-gray-600 mb-1">ប្រភេទគ្រឿង / Type of Goods</label>
-                      <select
-                        value={item.itemName}
-                        onChange={(e) => updateItem(idx, 'itemName', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      <button
+                        onClick={() => {
+                          setCurrentItemIndex(idx);
+                          setShowTypeSelector(true);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-left hover:bg-gray-100 focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="">-- ជ្រើសរើស / Select --</option>
-                        {itemTypeOptions.map((type, i) => (
-                          <option key={i} value={type}>{type}</option>
-                        ))}
-                      </select>
+                        {item.itemName || '-- ជ្រើសរើស / Select --'}
+                      </button>
                     </div>
                     <div className="w-24">
                       <label className="block text-xs font-medium text-gray-600 mb-1">លេខកូដ / Code</label>
@@ -1760,6 +2018,7 @@
                 input, select { border: none !important; background: transparent !important; }
               }
             `}</style>
+          </div>
           </div>
         );
       }
