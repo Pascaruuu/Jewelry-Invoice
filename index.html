@@ -62,6 +62,265 @@
       </svg>
     );
 
+    // ======================================================================
+    // INVOICE TEMPLATE SYSTEM
+    // ======================================================================
+    
+    /**
+     * Loads the invoice HTML template from file
+     * @returns {Promise<string>} The template HTML content
+     */
+    async function loadInvoiceTemplate() {
+      try {
+        if (typeof require !== 'undefined') {
+          const fs = require('fs');
+          const path = require('path');
+          const templatePath = path.join(__dirname, 'invoice-template.html');
+          return fs.readFileSync(templatePath, 'utf-8');
+        }
+      } catch (error) {
+        console.error('Error loading template:', error);
+      }
+      
+      // Fallback: return inline template if file not found
+      return getDefaultInvoiceTemplate();
+    }
+
+    /**
+     * Default inline template (fallback if file doesn't exist)
+     * @returns {string} The default invoice HTML template
+     */
+    function getDefaultInvoiceTemplate() {
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice - {{CLIENT_NAME}}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header h1 { font-size: 30px; margin: 10px 0; }
+    .header p { font-size: 22px; margin: 10px 0; }
+    .header h2 { font-size: 24px; margin: 20px 0 10px 0; }
+    .contact-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .contact-info p { font-size: 19px; margin: 5px 0; }
+    .info { margin: 20px 0; }
+    .info p { margin: 8px 0; font-size: 16px; }
+    .info strong { font-weight: 600; }
+    .client-name { font-size: 22px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; font-weight: bold; }
+    .totals { font-weight: bold; background-color: #f9f9f9; }
+    .grand-total { text-align: right; font-size: 24px; font-weight: bold; margin: 20px 0; }
+    .disclaimer { font-size: 18px; margin-top: 20px; color: #333; }
+    .qr-code { text-align: center; margin-top: 30px; }
+    .qr-code img { width: auto; height: 220px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>អូឡាំព្យា ចាក់ពុម្ពគ្រឿងអលង្ការ</h1>
+    <p>មានទទួលចាក់ពុម្ពគ្រឿងអលង្ការគ្រប់ប្រភេទ ដោយម៉ាស្សីនស្វ័យប្រវត្តិយ៉ាងទំនើបទាន់ចិត្ត</p>
+    <h2>វិក័យប័ត្រ / INVOICE</h2>
+  </div>
+  
+  <div class="contact-info">
+    <div>
+      <p><strong>TEL:</strong> 012205358<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;061848616</p>
+    </div>
+    <div style="text-align: right;">
+      <p>ផ្ទះលេខ10C1E0 ផ្លូវលេខ211<br/>សង្កាត់វាលវង់ ខណ្ឌ៧មករា</p>
+    </div>
+  </div>
+  
+  <div class="info">
+    <p><strong>ឈ្មោះអតិថិជន / Client Name: <span class="client-name">{{CLIENT_NAME}}</span></strong></p>
+    <p><strong>ថ្ងៃទី / Date:</strong> {{DATE}}</p>
+    <p><strong>ផ្លាទីនទឹក / Gold Mix:</strong> {{GOLD_MIX}}</p>
+    <p><strong>ហាងឆេង / Gold Market Price:</strong> ${{GOLD_PRICE}}</p>
+  </div>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>ប្រភេទគ្រឿង<br/>Type of Goods</th>
+        <th style="text-align: center;">ចំនួន<br/>Qty</th>
+        <th style="text-align: center;">ទំងន់<br/>Weight (l)</th>
+        <th style="text-align: right;">ឈ្នួល<br/>Labor</th>
+        <th style="text-align: right;">សរុប<br/>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ITEMS_ROWS}}
+      <tr class="totals">
+        <td>សរុប / TOTAL</td>
+        <td style="text-align: center;">{{TOTAL_QTY}}</td>
+        <td style="text-align: center;">{{TOTAL_WEIGHT}}</td>
+        <td style="text-align: right;">\${{TOTAL_LABOR}}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <div class="grand-total">
+    សរុបរួម / GRAND TOTAL: \${{GRAND_TOTAL}}
+  </div>
+  
+  <div class="disclaimer">
+    <p>អ្នកទិញបានមើល ថ្លឹង នឹងយល់ព្រមតាមទំងន់ខាងលើត្រឹមត្រូវ។</p>
+  </div>
+  
+  {{QR_CODE_SECTION}}
+</body>
+</html>`;
+    }
+
+    /**
+     * Generates the invoice HTML by filling in the template
+     * @param {Object} formData - The invoice form data
+     * @param {Array} goldMixOptions - Gold mix dropdown options
+     * @param {string} qrCodeImage - Base64 QR code image
+     * @param {Function} calculateItemTotal - Function to calculate item total
+     * @param {Function} formatDate - Function to format date
+     * @returns {Promise<string>} The filled HTML content
+     */
+    async function generateInvoiceHTML(formData, goldMixOptions, qrCodeImage, calculateItemTotal, formatDate, roundTotal) {
+      const template = await loadInvoiceTemplate();
+      
+      // Calculate totals
+      const totals = {
+        totalQty: formData.items.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0),
+        totalWeight: formData.items.reduce((sum, item) => {
+          return sum + item.subItems.reduce((s, sub) => s + (parseFloat(sub.weight) || 0), 0);
+        }, 0),
+        totalLabor: formData.items.reduce((sum, item) => {
+          return sum + item.subItems.reduce((s, sub) => s + (parseFloat(sub.laborCost) || 0), 0);
+        }, 0)
+      };
+
+      const rawGrandTotal = formData.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+      const grandTotal = roundTotal(rawGrandTotal);
+
+      // Generate items rows
+      const itemsRows = formData.items.map(item => {
+        const totalWeight = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.weight) || 0), 0);
+        const totalLabor = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.laborCost) || 0), 0);
+        return `
+        <tr>
+          <td>${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}</td>
+          <td style="text-align: center;">${item.quantity}${item.qtyUnit || ''}</td>
+          <td style="text-align: center;">${totalWeight.toFixed(1)}</td>
+          <td style="text-align: right;">$${totalLabor}</td>
+          <td style="text-align: right;">$${(() => {
+            const v = calculateItemTotal(item);
+            const d = v - Math.floor(v);
+            return (d >= 0.7 ? Math.ceil(v) : Math.floor(v)).toLocaleString();})()}</td>
+        </tr>`;
+      }).join('');
+
+      // Generate QR code section
+      const qrCodeSection = qrCodeImage 
+        ? `<div class="qr-code"><img src="${qrCodeImage}" alt="Payment QR Code" /></div>` 
+        : '';
+
+      // Replace all placeholders
+      let html = template
+        .replace(/{{CLIENT_NAME}}/g, formData.clientName)
+        .replace(/{{DATE}}/g, formatDate(formData.date))
+        .replace(/{{GOLD_MIX}}/g, goldMixOptions.find(o => o.value === formData.goldMix)?.label || '')
+        .replace(/{{GOLD_PRICE}}/g, formData.goldPrice)
+        .replace(/{{ITEMS_ROWS}}/g, itemsRows)
+        .replace(/{{TOTAL_QTY}}/g, totals.totalQty)
+        .replace(/{{TOTAL_WEIGHT}}/g, totals.totalWeight.toFixed(1))
+        .replace(/{{TOTAL_LABOR}}/g, totals.totalLabor)
+        .replace(/{{GRAND_TOTAL}}/g, grandTotal.toLocaleString())
+        .replace(/{{QR_CODE_SECTION}}/g, qrCodeSection);
+
+      return html;
+    }
+
+    // ======================================================================
+    // END OF TEMPLATE SYSTEM
+    // ======================================================================
+
+    function Sidebar({ currentPage, setCurrentPage, drafts, activeTab, loadDraft, deleteDraft, addNewDraft, restartPrintSpooler }) {
+      return (
+        <div className="w-64 bg-white shadow-lg p-4">
+          <h1 className="text-xl font-bold mb-6">វិក័យប័ត្រ / Invoice</h1>
+          
+          <div className="space-y-2 mb-6">
+            <button
+              onClick={() => setCurrentPage('invoice')}
+              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'invoice' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
+            >
+              📄 Invoice
+            </button>
+            <button
+              onClick={() => setCurrentPage('payment')}
+              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'payment' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
+            >
+              💰 Payment History
+            </button>
+            <button
+              onClick={() => setCurrentPage('settings')}
+              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'settings' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
+            >
+              ⚙️ Settings
+            </button>
+            <button
+              onClick={restartPrintSpooler}
+              className="w-full text-left px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
+            >
+              🖨️ Fix Printer
+            </button>
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-semibold">Drafts</span>
+              <button
+                onClick={addNewDraft}
+                className="w-6 h-6 bg-green-600 text-white rounded flex items-center justify-center hover:bg-green-700"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {drafts.map((draft, idx) => {
+                const orderItems = draft.items.map(i => i.itemName).filter(Boolean).join(', ');
+                const draftName = `${idx + 1} - ${draft.clientName || 'New'}${orderItems ? `_${orderItems}` : ''}`;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      loadDraft(idx);
+                      setCurrentPage('invoice');
+                    }}
+                    className={`w-full text-left px-2 py-1 text-xs rounded flex items-center justify-between group ${
+                      activeTab === idx ? 'bg-blue-100' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="truncate">{draftName}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteDraft(idx);
+                      }}
+                      className="opacity-0 group-hover:opacity-100"
+                    >
+                      <X size={12} />
+                    </button>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function ReceiptCalculator() {
       const [clients, setClients] = useState([]);
       const [showClientForm, setShowClientForm] = useState(false);
@@ -84,7 +343,8 @@
           quantity: '1',
           qtyUnit: '',
           productCode: '',
-          subItems: [{ weight: '', laborCost: '' }]
+          subItems: [{ weight: '', laborCost: '' }],
+          manualTotal: null
         }]
       });
 
@@ -252,7 +512,8 @@
             quantity: '1',
             qtyUnit: '',
             productCode: '',
-            subItems: [{ weight: '', laborCost: '' }]
+            subItems: [{ weight: '', laborCost: '' }],
+            manualTotal: null
           }],
           timestamp: new Date().toISOString()
         };
@@ -406,21 +667,20 @@
       };
 
       const calculateItemTotal = (item) => {
-        const rawTotal = item.subItems.reduce(
-          (sum, subItem) => sum + calculateSubItemTotal(subItem),
-          0
-        );
-
-        return roundTotal(rawTotal);
+        if (item.manualTotal !== null && item.manualTotal !== undefined) {
+          return parseFloat(item.manualTotal) || 0;
+        }
+        return item.subItems.reduce((sum, subItem) => sum + calculateSubItemTotal(subItem), 0);
       };
 
-
+      const getCalculatedTotal = (item) => {
+        return item.subItems.reduce((sum, subItem) => sum + calculateSubItemTotal(subItem), 0);
+      };
 
       const calculateGrandTotal = () => {
-        return formData.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+        const rawTotal = formData.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+        return roundTotal(rawTotal);
       };
-
-
 
       const calculateTotals = () => {
         const totalQty = formData.items.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0);
@@ -452,199 +712,124 @@
       };
 
       const handleSaveReceipt = async () => {
-              // Check client name first - don't save without it
-              if (!formData.clientName || !formData.clientName.trim()) {
-                // Create custom popup
-                const popup = document.createElement('div');
-                popup.innerHTML = `
-                  <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-                    <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
-                      <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
-                      <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">មិនអាចរក្សាទុកបាន / Cannot Save</h3>
-                      <p style="margin-bottom: 20px;">សូមបញ្ចូលឈ្មោះអតិថិជន!<br/>Please enter a client name!</p>
-                      <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
-                    </div>
-                  </div>
-                `;
-                document.body.appendChild(popup);
-                return;
-              }
-              
-              if (!savePath) {
-                const popup = document.createElement('div');
-                popup.innerHTML = `
-                  <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-                    <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
-                      <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
-                      <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">មិនអាចរក្សាទុកបាន / Cannot Save</h3>
-                      <p style="margin-bottom: 20px;">សូមជ្រើសរើសទីតាំងរក្សាទុកជាមុនសិន!<br/>Please select save path first (Go to Settings)</p>
-                      <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
-                    </div>
-                  </div>
-                `;
-                document.body.appendChild(popup);
-                return;
-              }
-              
-              try {
-                if (typeof require !== 'undefined') {
-                  const { ipcRenderer } = require('electron');
-                  
-                  // Generate HTML content for the invoice
-                  const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Invoice - ${formData.clientName}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; font-weight: bold; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .info { margin: 20px 0; }
-          .totals { font-weight: bold; background-color: #f9f9f9; }
-          .grand-total { text-align: right; font-size: 24px; font-weight: bold; margin: 20px 0; }
-          .disclaimer { font-size: 12px; margin-top: 20px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1 style="font-size: 30px;">អូឡាំព្យា ចាក់ពុម្ពគ្រឿងអលង្ការ</h1>
-          <p style="font-size: 22px;">មានទទួលចាក់ពុម្ពគ្រឿងអលង្ការគ្រប់ប្រភេទ ដោយម៉ាស្សីនស្វ័យប្រវត្តិយ៉ាងទំនើបទាន់ចិត្ត</p>
-          <h2>វិក័យប័ត្រ / INVOICE</h2>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-          <div>
-            <p style="font-size: 19px;"><strong>TEL:</strong> 012205358<br/>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;061848616</p>
-          </div>
-          <div style="text-align: right;">
-            <p style="font-size: 19px;">ផ្ទះលេខ10C1E0 ផ្លូវលេខ211<br/>សង្កាត់វាលវង់ ខណ្ឌ៧មករា</p>
-          </div>
-        </div>
-        
-        <div class="info">
-          <p><strong>ឈ្មោះអតិថិជន / Client Name: <span style="font-size: 22px;">${formData.clientName}</span></strong></p>
-          <p><strong>ថ្ងៃទី / Date:</strong> ${formatDate(formData.date)}</p>
-          <p><strong>ផ្លាទីនទឹក / Gold Mix:</strong> ${goldMixOptions.find(o => o.value === formData.goldMix)?.label || ''}</p>
-          <p><strong>ហាងឆេង / Gold Market Price:</strong> $${formData.goldPrice}</p>
-        </div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>ប្រភេទគ្រឿង<br/>Type of Goods</th>
-              <th style="text-align: center;">ចំនួន<br/>Qty</th>
-              <th style="text-align: center;">ទំងន់<br/>Weight (l)</th>
-              <th style="text-align: right;">ឈ្នួល<br/>Labor</th>
-              <th style="text-align: right;">សរុប<br/>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${formData.items.map(item => {
-              const totalWeight = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.weight) || 0), 0);
-              const totalLabor = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.laborCost) || 0), 0);
-              return `
-              <tr>
-                <td>${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}</td>
-                <td style="text-align: center;">${item.quantity}${item.qtyUnit || ''}</td>
-                <td style="text-align: center;">${totalWeight.toFixed(1)}</td>
-                <td style="text-align: right;">$${totalLabor}</td>
-                <td style="text-align: right;">$${calculateItemTotal(item).toLocaleString()}</td>
-              </tr>`;
-            }).join('')}
-            <tr class="totals">
-              <td>សរុប / TOTAL</td>
-              <td style="text-align: center;">${totals.totalQty}</td>
-              <td style="text-align: center;">${totals.totalWeight.toFixed(1)}</td>
-              <td style="text-align: right;">$${totals.totalLabor}</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-        
-        <div class="grand-total">
-          សរុបរួម / GRAND TOTAL: $${calculateGrandTotal().toLocaleString()}
-        </div>
-        
-        <div class="disclaimer">
-          <p style="font-size: 18px;">អ្នកទិញបានមើល ថ្លឹង នឹងយល់ព្រមតាមទំងន់ខាងលើត្រឹមត្រូវ។</p>
-        </div>
-        
-        ${qrCodeImage ? `<div style="text-align: center; margin-top: 30px;"><img src="${qrCodeImage}" style="width: auto; height: 220px;" /></div>` : ''}
-      </body>
-      </html>`;
-
-      // Create filename with date_name_goods
-        const goodsList = formData.items
-          .map(item => item.itemName)
-          .filter(name => name)
-          .join('_');
-        const now = new Date();
-        const timeSaved =
-          `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
-        const fileName = `${formatDate(formData.date).replace(/\//g, '-')}_${formData.clientName}_${goodsList}_${timeSaved}`;
-        
-        const result = await ipcRenderer.invoke('save-pdf', {
-          clientName: formData.clientName,
-          fileName: fileName,
-          basePath: savePath,
-          htmlContent: htmlContent
-        });
-                  
-        if (result && result.success) {
-          // Add to payment history
-          const orderSummary = formData.items
-            .map(item => `${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}`)
-            .filter(Boolean)
-            .join(', ');
-          
-          const paymentRecord = {
-            id: Date.now(),
-            clientName: formData.clientName,
-            orders: orderSummary,
-            savedTime: new Date().toLocaleString(),
-            total: calculateGrandTotal(),
-            status: 'pending',
-            filePath: result.path
-          };
-          
-          addPaymentRecord(paymentRecord);
-          
-          // Success popup with Open/Close options
+        // Check client name first - don't save without it
+        if (!formData.clientName || !formData.clientName.trim()) {
+          // Create custom popup
           const popup = document.createElement('div');
           popup.innerHTML = `
             <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-              <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; text-align: center;">
-                <div style="font-size: 48px; color: #16a34a; margin-bottom: 15px;">✓</div>
-                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">រក្សាទុកជោគជ័យ! / Saved Successfully!</h3>
-                <p style="margin-bottom: 10px; font-size: 14px; color: #666;">Path: ${result.path}</p>
-                <p style="margin-bottom: 20px;">តើអ្នកចង់បើកឯកសារដើម្បីបោះពុម្ពទេ?<br/>Do you want to open the file to print?</p>
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                  <button id="closeBtn" style="background: #6b7280; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Close</button>
-                  <button id="openBtn" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Open</button>
-                </div>
+              <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
+                <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
+                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">មិនអាចរក្សាទុកបាន / Cannot Save</h3>
+                <p style="margin-bottom: 20px;">សូមបញ្ចូលឈ្មោះអតិថិជន!<br/>Please enter a client name!</p>
+                <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
               </div>
             </div>
           `;
           document.body.appendChild(popup);
-          
-          document.getElementById('closeBtn').onclick = () => {
-            popup.remove();
-          };
-          
-          document.getElementById('openBtn').onclick = async () => {
-            try {
-              await ipcRenderer.invoke('open-file', result.path);
-              popup.remove();
-            } catch (error) {
-              alert('Error opening file: ' + error.message);
-            }
-          };
+          return;
+        }
+        
+        if (!savePath) {
+          const popup = document.createElement('div');
+          popup.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+              <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
+                <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
+                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">មិនអាចរក្សាទុកបាន / Cannot Save</h3>
+                <p style="margin-bottom: 20px;">សូមជ្រើសរើសទីតាំងរក្សាទុកជាមុនសិន!<br/>Please select save path first (Go to Settings)</p>
+                <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(popup);
+          return;
+        }
+        
+        try {
+          if (typeof require !== 'undefined') {
+            const { ipcRenderer } = require('electron');
+            
+            // ======================================================================
+            // USING THE NEW TEMPLATE SYSTEM
+            // ======================================================================
+            const htmlContent = await generateInvoiceHTML(
+              formData,
+              goldMixOptions,
+              qrCodeImage,
+              calculateItemTotal,
+              formatDate,
+              roundTotal
+            );
+            // ======================================================================
+
+            // Create filename with date_name_goods
+            const goodsList = formData.items
+              .map(item => item.itemName)
+              .filter(name => name)
+              .join('_');
+            
+            const now = new Date();
+            const timeStamp = `${now.getHours().toString().padStart(2, '0')}h${now.getMinutes().toString().padStart(2, '0')}`;
+            const fileName = `${formatDate(formData.date).replace(/\//g, '-')}_${formData.clientName}_${goodsList}_${timeStamp}`;
+            
+            const result = await ipcRenderer.invoke('save-pdf', {
+              clientName: formData.clientName,
+              fileName: fileName,
+              basePath: savePath,
+              htmlContent: htmlContent
+            });
+                      
+            if (result && result.success) {
+              // Add to payment history
+              const orderSummary = formData.items
+                .map(item => `${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}`)
+                .filter(Boolean)
+                .join(', ');
               
+              const paymentRecord = {
+                id: Date.now(),
+                clientName: formData.clientName,
+                orders: orderSummary,
+                savedTime: new Date().toLocaleString(),
+                total: calculateGrandTotal(),
+                status: 'pending',
+                filePath: result.path
+              };
+              
+              addPaymentRecord(paymentRecord);
+              
+              // Success popup with Open/Close options
+              const popup = document.createElement('div');
+              popup.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+                  <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; text-align: center;">
+                    <div style="font-size: 48px; color: #16a34a; margin-bottom: 15px;">✓</div>
+                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">រក្សាទុកជោគជ័យ! / Saved Successfully!</h3>
+                    <p style="margin-bottom: 10px; font-size: 14px; color: #666;">Path: ${result.path}</p>
+                    <p style="margin-bottom: 20px;">តើអ្នកចង់បើកឯកសារដើម្បីបោះពុម្ពទេ?<br/>Do you want to open the file to print?</p>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                      <button id="closeBtn" style="background: #6b7280; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Close</button>
+                      <button id="openBtn" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Open</button>
+                    </div>
+                  </div>
+                </div>
+              `;
+              document.body.appendChild(popup);
+              
+              document.getElementById('closeBtn').onclick = () => {
+                popup.remove();
+              };
+              
+              document.getElementById('openBtn').onclick = async () => {
+                try {
+                  await ipcRenderer.invoke('open-file', result.path);
+                  popup.remove();
+                } catch (error) {
+                  alert('Error opening file: ' + error.message);
+                }
+              };
+                  
             } else {
               // Error popup
               const popup = document.createElement('div');
@@ -732,11 +917,17 @@
       };
 
       const addGoldMix = (newMix) => {
+        // Check for duplicate value
+        const isDuplicate = goldMixOptions.some(mix => mix.value === newMix.value);
+        if (isDuplicate) {
+          alert(`❌ Error: Value "${newMix.value}" already exists!\nPlease use a unique value.`);
+          return;
+        }
         const updated = [...goldMixOptions, newMix];
         saveGoldMixOptions(updated);
       };
 
-const removeGoldMix = (valueToRemove) => {
+      const removeGoldMix = (valueToRemove) => {
         const updated = goldMixOptions.filter(m => m.value !== valueToRemove);
         saveGoldMixOptions(updated);
       };
@@ -782,81 +973,19 @@ const removeGoldMix = (valueToRemove) => {
 
       const totals = calculateTotals();
 
-if (currentPage === 'payment') {
+      if (currentPage === 'payment') {
         return (
           <div className="min-h-screen bg-gray-50 flex">
-            {/* Sidebar */}
-            <div className="w-64 bg-white shadow-lg p-4">
-              <h1 className="text-xl font-bold mb-6">វិក័យប័ត្រ / Invoice</h1>
-              
-              <div className="space-y-2 mb-6">
-                <button
-                  onClick={() => setCurrentPage('invoice')}
-                  className="w-full text-left px-4 py-2 rounded hover:bg-gray-100"
-                >
-                  📄 Invoice
-                </button>
-                <button
-                  onClick={() => setCurrentPage('payment')}
-                  className="w-full text-left px-4 py-2 rounded bg-blue-100 text-blue-700 font-semibold"
-                >
-                  💰 Payment History
-                </button>
-                <button
-                  onClick={() => setCurrentPage('settings')}
-                  className="w-full text-left px-4 py-2 rounded hover:bg-gray-100"
-                >
-                  ⚙️ Settings
-                </button>
-                <button
-                  onClick={restartPrintSpooler}
-                  className="w-full text-left px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
-                >
-                  🖨️ Fix Printer
-                </button>
-              </div>
-
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-semibold">Drafts</span>
-                  <button
-                    onClick={addNewDraft}
-                    className="w-6 h-6 bg-green-600 text-white rounded flex items-center justify-center hover:bg-green-700"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-                <div className="space-y-1 max-h-96 overflow-y-auto">
-                  {drafts.map((draft, idx) => {
-                    const orderItems = draft.items.map(i => i.itemName).filter(Boolean).join(', ');
-                    const draftName = `${idx + 1} - ${draft.clientName || 'New'}${orderItems ? `_${orderItems}` : ''}`;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          loadDraft(idx);
-                          setCurrentPage('invoice');
-                        }}
-                        className={`w-full text-left px-2 py-1 text-xs rounded flex items-center justify-between group ${
-                          activeTab === idx ? 'bg-blue-100' : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <span className="truncate">{draftName}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteDraft(idx);
-                          }}
-                          className="opacity-0 group-hover:opacity-100"
-                        >
-                          <X size={12} />
-                        </button>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            <Sidebar 
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              drafts={drafts}
+              activeTab={activeTab}
+              loadDraft={loadDraft}
+              deleteDraft={deleteDraft}
+              addNewDraft={addNewDraft}
+              restartPrintSpooler={restartPrintSpooler}
+            />
 
             {/* Payment History Content */}
             <div className="flex-1 p-8">
@@ -960,78 +1089,16 @@ if (currentPage === 'payment') {
       if (currentPage === 'settings') {
         return (
           <div className="min-h-screen bg-gray-50 flex">
-            {/* Sidebar */}
-            <div className="w-64 bg-white shadow-lg p-4">
-              <h1 className="text-xl font-bold mb-6">វិក័យប័ត្រ / Invoice</h1>
-              
-            <div className="space-y-2 mb-6">
-              <button
-                onClick={() => setCurrentPage('invoice')}
-                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'invoice' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
-              >
-                📄 Invoice
-              </button>
-              <button
-                onClick={() => setCurrentPage('payment')}
-                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'payment' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
-              >
-                💰 Payment History
-              </button>
-              <button
-                onClick={() => setCurrentPage('settings')}
-                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'settings' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
-              >
-                ⚙️ Settings
-              </button>
-              <button
-                onClick={restartPrintSpooler}
-                className="w-full text-left px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
-              >
-                🖨️ Fix Printer
-              </button>
-            </div>
-
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-semibold">Drafts</span>
-                  <button
-                    onClick={addNewDraft}
-                    className="w-6 h-6 bg-green-600 text-white rounded flex items-center justify-center hover:bg-green-700"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-                <div className="space-y-1 max-h-96 overflow-y-auto">
-                  {drafts.map((draft, idx) => {
-                    const orderItems = draft.items.map(i => i.itemName).filter(Boolean).join(', ');
-                    const draftName = `${idx + 1} - ${draft.clientName || 'New'}${orderItems ? `_${orderItems}` : ''}`;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          loadDraft(idx);
-                          setCurrentPage('invoice');
-                        }}
-                        className={`w-full text-left px-2 py-1 text-xs rounded flex items-center justify-between group ${
-                          activeTab === idx ? 'bg-blue-100' : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <span className="truncate">{draftName}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteDraft(idx);
-                          }}
-                          className="opacity-0 group-hover:opacity-100"
-                        >
-                          <X size={12} />
-                        </button>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            <Sidebar 
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              drafts={drafts}
+              activeTab={activeTab}
+              loadDraft={loadDraft}
+              deleteDraft={deleteDraft}
+              addNewDraft={addNewDraft}
+              restartPrintSpooler={restartPrintSpooler}
+            />
 
             {/* Settings Content */}
             <div className="flex-1 p-8">
@@ -1225,9 +1292,16 @@ if (currentPage === 'payment') {
                       const labelInput = document.getElementById('newGoldLabel');
                       const valueInput = document.getElementById('newGoldValue');
                       if (labelInput.value.trim() && valueInput.value.trim()) {
-                        addGoldMix({ label: labelInput.value.trim(), value: valueInput.value.trim() });
-                        labelInput.value = '';
-                        valueInput.value = '';
+                        const newMix = { label: labelInput.value.trim(), value: valueInput.value.trim() };
+                        // Check for duplicate before clearing inputs
+                        const isDuplicate = goldMixOptions.some(mix => mix.value === newMix.value);
+                        addGoldMix(newMix);
+                        if (!isDuplicate) {
+                          labelInput.value = '';
+                          valueInput.value = '';
+                        }
+                      } else {
+                        alert('Please fill in both label and value');
                       }
                     }}
                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -1347,7 +1421,7 @@ if (currentPage === 'payment') {
                           <td className="text-center py-3 px-2">{item.quantity}{item.qtyUnit}</td>
                           <td className="text-center py-3 px-2">{weightDisplay}</td>
                           <td className="text-right py-3 px-2">${laborDisplay}</td>
-                          <td className="text-right py-3 px-2 font-semibold">${calculateItemTotal(item).toLocaleString()}</td>
+                          <td className="text-right py-3 px-2 font-semibold">${Math.round(calculateItemTotal(item)).toLocaleString()}</td>
                         </tr>
                       );
                     })}
@@ -1368,7 +1442,7 @@ if (currentPage === 'payment') {
                   <div className="text-right">
                     <div className="text-2xl font-bold mb-1">
                       <span className="mr-4">សរុបរួម / GRAND TOTAL:</span>
-                      <span className="text-3xl">${calculateGrandTotal().toLocaleString()}</span>
+                      <span className="text-3xl">${Math.round(calculateGrandTotal()).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -1386,75 +1460,16 @@ if (currentPage === 'payment') {
 
       return (
         <div className="min-h-screen bg-gray-50 flex">
-          {/* Sidebar */}
-          <div className="w-64 bg-white shadow-lg p-4">
-            <h1 className="text-xl font-bold mb-6">វិក័យប័ត្រ / Invoice</h1>
-            
-            <div className="space-y-2 mb-6">
-              <button
-                onClick={() => setCurrentPage('invoice')}
-                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'invoice' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
-              >
-                📄 Invoice
-              </button>
-              <button
-                onClick={() => setCurrentPage('payment')}
-                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'payment' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
-              >
-                💰 Payment History
-              </button>
-              <button
-                onClick={() => setCurrentPage('settings')}
-                className={`w-full text-left px-4 py-2 rounded ${currentPage === 'settings' ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}`}
-              >
-                ⚙️ Settings
-              </button>
-              <button
-                onClick={restartPrintSpooler}
-                className="w-full text-left px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold"
-              >
-                🖨️ Fix Printer
-              </button>
-            </div>
-            
-            <div className="border-t pt-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-semibold">Drafts</span>
-                <button
-                  onClick={addNewDraft}
-                  className="w-6 h-6 bg-green-600 text-white rounded flex items-center justify-center hover:bg-green-700"
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-              <div className="space-y-1 max-h-96 overflow-y-auto">
-                {drafts.map((draft, idx) => {
-                  const orderItems = draft.items.map(i => i.itemName).filter(Boolean).join(', ');
-                  const draftName = `${idx + 1} - ${draft.clientName || 'New'}${orderItems ? `_${orderItems}` : ''}`;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => loadDraft(idx)}
-                      className={`w-full text-left px-2 py-1 text-xs rounded flex items-center justify-between group ${
-                        activeTab === idx ? 'bg-blue-100' : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <span className="truncate">{draftName}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteDraft(idx);
-                        }}
-                        className="opacity-0 group-hover:opacity-100"
-                      >
-                        <X size={12} />
-                      </button>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <Sidebar 
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            drafts={drafts}
+            activeTab={activeTab}
+            loadDraft={loadDraft}
+            deleteDraft={deleteDraft}
+            addNewDraft={addNewDraft}
+            restartPrintSpooler={restartPrintSpooler}
+          />
 
           {/* Main Content */}
           <div className="flex-1 p-8">
@@ -1615,11 +1630,27 @@ if (currentPage === 'payment') {
                             </select>
                           </div>
                         </div>
-                    <div className="w-28 pt-6">
-                      <div className="text-sm font-semibold text-gray-700 px-2 py-2 bg-white rounded border border-gray-300">
-                        ${calculateItemTotal(item).toLocaleString()}
-                      </div>
-                    </div>
+                    <div className="w-40 pt-6">
+                          <div className="flex gap-1 items-center">
+                            <input
+                              type="number"
+                              step="1"
+                              value={item.manualTotal !== null ? item.manualTotal : calculateItemTotal(item)}
+                              onChange={(e) => updateItem(idx, 'manualTotal', e.target.value === '' ? null : e.target.value)}
+                              className="w-24 text-sm font-semibold text-gray-700 px-2 py-2 bg-white rounded border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                              placeholder={getCalculatedTotal(item).toString()}
+                            />
+                            {item.manualTotal !== null && (
+                              <button
+                                onClick={() => updateItem(idx, 'manualTotal', null)}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                title="Reset to calculated"
+                              >
+                                ↻
+                              </button>
+                            )}
+                          </div>
+                        </div>
                     {formData.items.length > 1 && (
                       <button
                         onClick={() => removeItem(idx)}
@@ -1692,7 +1723,7 @@ if (currentPage === 'payment') {
             <div className="border-t pt-4 mt-6">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-gray-700">សរុបរួម / Grand Total:</span>
-                <span className="text-2xl font-bold text-blue-600">${calculateGrandTotal().toLocaleString()}</span>
+                <span className="text-2xl font-bold text-blue-600">${Math.round(calculateGrandTotal()).toLocaleString()}</span>
               </div>
             </div>
 

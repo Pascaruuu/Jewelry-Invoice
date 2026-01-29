@@ -47,24 +47,21 @@ function createWindow() {
 
 // PDF Save Handler
 ipcMain.handle('save-pdf', async (event, data) => {
-  const { clientName, date, htmlContent, basePath } = data;
-  
+  const { clientName, fileName, htmlContent, basePath } = data;
+
   if (!basePath) {
     return { success: false, error: 'No save path selected' };
   }
-  
+
   const clientFolder = path.join(basePath, clientName);
-  
-  // Create client folder if doesn't exist
+
   if (!fs.existsSync(clientFolder)) {
     fs.mkdirSync(clientFolder, { recursive: true });
   }
-  
-  // Save HTML file
-  const fileName = `${clientName}_${date}.html`;
-  const filePath = path.join(clientFolder, fileName);
+
+  const filePath = path.join(clientFolder, `${fileName}.html`);
   fs.writeFileSync(filePath, htmlContent);
-  
+
   return { success: true, path: filePath };
 });
 
