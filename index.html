@@ -15,7 +15,9 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // Lucide React icons as SVG components
+    // ======================================================================
+    // ICON COMPONENTS
+    // ======================================================================
     const Printer = ({ size = 24 }) => (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -52,24 +54,9 @@
       </svg>
     );
 
-    const FileText = ({ size = 24 }) => (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-        <polyline points="14 2 14 8 20 8"></polyline>
-        <line x1="16" y1="13" x2="8" y2="13"></line>
-        <line x1="16" y1="17" x2="8" y2="17"></line>
-        <polyline points="10 9 9 9 8 9"></polyline>
-      </svg>
-    );
-
     // ======================================================================
     // INVOICE TEMPLATE SYSTEM
     // ======================================================================
-    
-    /**
-     * Loads the invoice HTML template from file
-     * @returns {Promise<string>} The template HTML content
-     */
     async function loadInvoiceTemplate() {
       try {
         if (typeof require !== 'undefined') {
@@ -81,15 +68,9 @@
       } catch (error) {
         console.error('Error loading template:', error);
       }
-      
-      // Fallback: return inline template if file not found
       return getDefaultInvoiceTemplate();
     }
 
-    /**
-     * Default inline template (fallback if file doesn't exist)
-     * @returns {string} The default invoice HTML template
-     */
     function getDefaultInvoiceTemplate() {
       return `<!DOCTYPE html>
 <html>
@@ -177,19 +158,9 @@
 </html>`;
     }
 
-    /**
-     * Generates the invoice HTML by filling in the template
-     * @param {Object} formData - The invoice form data
-     * @param {Array} goldMixOptions - Gold mix dropdown options
-     * @param {string} qrCodeImage - Base64 QR code image
-     * @param {Function} calculateItemTotal - Function to calculate item total
-     * @param {Function} formatDate - Function to format date
-     * @returns {Promise<string>} The filled HTML content
-     */
     async function generateInvoiceHTML(formData, goldMixOptions, qrCodeImage, calculateItemTotal, formatDate, roundTotal) {
       const template = await loadInvoiceTemplate();
       
-      // Calculate totals
       const totals = {
         totalQty: formData.items.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0),
         totalWeight: formData.items.reduce((sum, item) => {
@@ -203,7 +174,6 @@
       const rawGrandTotal = formData.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
       const grandTotal = roundTotal(rawGrandTotal);
 
-      // Generate items rows
       const itemsRows = formData.items.map(item => {
         const totalWeight = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.weight) || 0), 0);
         const totalLabor = item.subItems.reduce((sum, sub) => sum + (parseFloat(sub.laborCost) || 0), 0);
@@ -220,12 +190,10 @@
         </tr>`;
       }).join('');
 
-      // Generate QR code section
       const qrCodeSection = qrCodeImage 
         ? `<div class="qr-code"><img src="${qrCodeImage}" alt="Payment QR Code" /></div>` 
         : '';
 
-      // Replace all placeholders
       let html = template
         .replace(/{{CLIENT_NAME}}/g, formData.clientName)
         .replace(/{{DATE}}/g, formatDate(formData.date))
@@ -242,17 +210,12 @@
     }
 
     // ======================================================================
-    // END OF TEMPLATE SYSTEM
-    // ======================================================================
-
-    // ======================================================================
     // HEADER COMPONENT
     // ======================================================================
-    function Header({ formData, setFormData, saveDraft, handleSaveReceipt }) {
+    function Header({ formData, setFormData, saveDraft, handleSaveReceipt, globalGoldPrice, setGlobalGoldPrice }) {
       return (
         <div className="fixed top-0 left-0 right-0 bg-white shadow-md border-b border-gray-200 z-40">
           <div className="flex items-center justify-between px-6 py-4">
-            {/* Left: Title & Date */}
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold text-gray-800">
                 វិក័យប័ត្រ / Invoice
@@ -265,7 +228,27 @@
               />
             </div>
 
-            {/* Right: Action Buttons */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                Today's Gold Price:
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                <input
+                  type="number"
+                  step="1"
+                  value={globalGoldPrice}
+                  onChange={(e) => {
+                    const newPrice = e.target.value;
+                    setGlobalGoldPrice(newPrice);
+                    localStorage.setItem('jewelryGlobalGoldPrice', newPrice);
+                  }}
+                  placeholder="Set price"
+                  className="w-32 pl-7 pr-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
             <div className="flex items-center gap-3">
               <button
                 onClick={saveDraft}
@@ -287,12 +270,10 @@
       );
     }
 
-
     // ======================================================================
-    // GROUPED TYPE SELECTOR POPUP COMPONENT
+    // GROUPED TYPE SELECTOR POPUP
     // ======================================================================
     function GroupedTypeSelector({ groups, onSelect, onClose }) {
-      // Split groups into rows of 3
       const rows = [];
       for (let i = 0; i < groups.length; i += 3) {
         rows.push(groups.slice(i, i + 3));
@@ -309,10 +290,7 @@
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">ជ្រើសរើសប្រភេទគ្រឿង / Select Type of Goods</h3>
-              <button
-                onClick={onClose}
-                className="text-gray-500 hover:text-gray-700"
-              >
+              <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                 <X size={24} />
               </button>
             </div>
@@ -348,10 +326,73 @@
         </div>
       );
     }
+
+    // ======================================================================
+    // INPUT MODAL COMPONENT
+    // ======================================================================
+    function InputModal({ isOpen, title, defaultValue, onSubmit, onCancel }) {
+      const [value, setValue] = useState(defaultValue || '');
+
+      useEffect(() => {
+        setValue(defaultValue || '');
+      }, [defaultValue, isOpen]);
+
+      if (!isOpen) return null;
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (value.trim()) {
+          onSubmit(value.trim());
+          setValue('');
+        }
+      };
+
+      return (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={onCancel}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 w-96"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-4">{title}</h3>
+            <form onSubmit={handleSubmit}>
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 mb-4"
+                autoFocus
+                placeholder="Enter value..."
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  OK
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // ======================================================================
+    // SIDEBAR COMPONENT
+    // ======================================================================
     function Sidebar({ currentPage, setCurrentPage, drafts, activeTab, loadDraft, deleteDraft, addNewDraft, restartPrintSpooler }) {
       return (
         <div className="fixed left-0 top-20 bottom-0 w-64 bg-white shadow-lg p-4 overflow-y-auto">
-          
           <div className="space-y-2 mb-6">
             <button
               onClick={() => setCurrentPage('invoice')}
@@ -423,9 +464,11 @@
       );
     }
 
+    // ======================================================================
+    // MAIN COMPONENT
+    // ======================================================================
     function ReceiptCalculator() {
       const [clients, setClients] = useState([]);
-      const [showClientForm, setShowClientForm] = useState(false);
       const [newClientName, setNewClientName] = useState('');
       const [showPrintView, setShowPrintView] = useState(false);
       const [currentPage, setCurrentPage] = useState('invoice');
@@ -434,7 +477,11 @@
       const [savePath, setSavePath] = useState('');
       const [qrCodeImage, setQrCodeImage] = useState('');
       const [paymentHistory, setPaymentHistory] = useState([]);
-      const [theme, setTheme] = useState('light');
+      const [showTypeSelector, setShowTypeSelector] = useState(false);
+      const [currentItemIndex, setCurrentItemIndex] = useState(null);
+      const [globalGoldPrice, setGlobalGoldPrice] = useState('');
+      const [showInputModal, setShowInputModal] = useState(false);
+      const [inputModalData, setInputModalData] = useState({ title: '', defaultValue: '', onSubmit: null });
       
       const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -466,9 +513,6 @@
         }
       ]);
 
-      const [showTypeSelector, setShowTypeSelector] = useState(false);
-      const [currentItemIndex, setCurrentItemIndex] = useState(null);
-
       const [goldMixOptions, setGoldMixOptions] = useState([
         { label: '50%', value: '50' },
         { label: '60%', value: '60' },
@@ -483,55 +527,69 @@
 
       const [qtyUnitOptions, setQtyUnitOptions] = useState(['', 'P', 'ដុំ', 'គូ']);
 
+      // Load data from localStorage
       useEffect(() => {
-        const savedTheme = localStorage.getItem('jewelryTheme');
-        if (savedTheme) {
-          setTheme(savedTheme);
-        }
-
         const savedClients = localStorage.getItem('jewelryClients');
-        if (savedClients) {
-          setClients(JSON.parse(savedClients));
-        }
+        if (savedClients) setClients(JSON.parse(savedClients));
         
         const savedDrafts = localStorage.getItem('jewelryDrafts');
-        if (savedDrafts) {
-          setDrafts(JSON.parse(savedDrafts));
-        }
+        if (savedDrafts) setDrafts(JSON.parse(savedDrafts));
         
         const savedPath = localStorage.getItem('jewelrySavePath');
-        if (savedPath) {
-          setSavePath(savedPath);
-        }
+        if (savedPath) setSavePath(savedPath);
+
+        const savedGlobalGoldPrice = localStorage.getItem('jewelryGlobalGoldPrice');
+        if (savedGlobalGoldPrice) setGlobalGoldPrice(savedGlobalGoldPrice);
 
         const savedQR = localStorage.getItem('jewelryQRCode');
-        if (savedQR) {
-          setQrCodeImage(savedQR);
-        }
+        if (savedQR) setQrCodeImage(savedQR);
 
         const savedPaymentHistory = localStorage.getItem('jewelryPaymentHistory');
-        if (savedPaymentHistory) {
-          setPaymentHistory(JSON.parse(savedPaymentHistory));
-        }
+        if (savedPaymentHistory) setPaymentHistory(JSON.parse(savedPaymentHistory));
 
-        // Load settings
         const savedItemTypeGroups = localStorage.getItem('jewelryItemTypeGroups');
-        if (savedItemTypeGroups) {
-          setItemTypeGroups(JSON.parse(savedItemTypeGroups));
-        }
+        if (savedItemTypeGroups) setItemTypeGroups(JSON.parse(savedItemTypeGroups));
 
         const savedGoldMix = localStorage.getItem('jewelryGoldMix');
-        if (savedGoldMix) {
-          setGoldMixOptions(JSON.parse(savedGoldMix));
-        }
+        if (savedGoldMix) setGoldMixOptions(JSON.parse(savedGoldMix));
 
         const savedQtyUnits = localStorage.getItem('jewelryQtyUnits');
-        if (savedQtyUnits) {
-          setQtyUnitOptions(JSON.parse(savedQtyUnits));
-        }
+        if (savedQtyUnits) setQtyUnitOptions(JSON.parse(savedQtyUnits));
       }, []);
 
-      // Group management functions
+      // Sync global gold price to formData when it changes
+      useEffect(() => {
+        if (globalGoldPrice && !formData.goldPrice) {
+          setFormData(prev => ({ ...prev, goldPrice: globalGoldPrice }));
+        }
+      }, [globalGoldPrice, formData.goldPrice]);
+
+
+      // ======================================================================
+      // MODAL HELPER
+      // ======================================================================
+      const showInput = (title, defaultValue = '') => {
+        return new Promise((resolve) => {
+          setInputModalData({
+            title,
+            defaultValue,
+            onSubmit: (value) => {
+              setShowInputModal(false);
+              resolve(value);
+            }
+          });
+          setShowInputModal(true);
+        });
+      };
+
+      const closeInputModal = () => {
+        setShowInputModal(false);
+        setInputModalData({ title: '', defaultValue: '', onSubmit: null });
+      };
+
+      // ======================================================================
+      // GROUP MANAGEMENT
+      // ======================================================================
       const saveItemTypeGroups = (newGroups) => {
         setItemTypeGroups(newGroups);
         localStorage.setItem('jewelryItemTypeGroups', JSON.stringify(newGroups));
@@ -565,58 +623,9 @@
         saveItemTypeGroups(updated);
       };
 
-      const handleQRUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const base64 = event.target.result;
-            setQrCodeImage(base64);
-            localStorage.setItem('jewelryQRCode', base64);
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-
-      const handleSelectSavePath = async () => {
-        try {
-          // Check if we're in Electron environment
-          if (typeof require !== 'undefined') {
-            try {
-              const { ipcRenderer } = require('electron');
-              const result = await ipcRenderer.invoke('select-save-path');
-              if (result && result.success) {
-                setSavePath(result.path);
-                localStorage.setItem('jewelrySavePath', result.path);
-                alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${result.path}`);
-              } else {
-                console.log('No folder selected');
-              }
-            } catch (electronError) {
-              console.error('Electron IPC error:', electronError);
-              // Fallback to prompt if Electron fails
-              const folderPath = prompt('Enter save folder path (e.g., C:\\Invoices):');
-              if (folderPath) {
-                setSavePath(folderPath);
-                localStorage.setItem('jewelrySavePath', folderPath);
-                alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${folderPath}`);
-              }
-            }
-          } else {
-            // Fallback for web browser (claude.ai artifact)
-            const folderPath = prompt('Enter save folder path (e.g., C:\\Invoices):');
-            if (folderPath) {
-              setSavePath(folderPath);
-              localStorage.setItem('jewelrySavePath', folderPath);
-              alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${folderPath}`);
-            }
-          }
-        } catch (error) {
-          console.error('Error selecting path:', error);
-          alert('Error: ' + error.message);
-        }
-      };
-
+      // ======================================================================
+      // CLIENT MANAGEMENT
+      // ======================================================================
       const saveClient = () => {
         if (newClientName.trim() && !clients.includes(newClientName.trim())) {
           const updatedClients = [...clients, newClientName.trim()];
@@ -635,6 +644,9 @@
         }
       };
 
+      // ======================================================================
+      // DRAFT MANAGEMENT
+      // ======================================================================
       const saveDraft = () => {
         const newDrafts = [...drafts];
         newDrafts[activeTab] = { ...formData, timestamp: new Date().toISOString() };
@@ -648,7 +660,7 @@
           date: new Date().toISOString().split('T')[0],
           clientName: '',
           goldMix: '',
-          goldPrice: '',
+          goldPrice: globalGoldPrice || '',
           items: [{ 
             itemName: '', 
             quantity: '1',
@@ -670,18 +682,15 @@
         setActiveTab(index);
         const draft = drafts[index];
         
-        // Ensure all items have the correct structure
         const normalizedItems = draft.items.map(item => ({
           itemName: item.itemName || '',
           quantity: item.quantity || '1',
           qtyUnit: item.qtyUnit || '',
           productCode: item.productCode || '',
           subItems: Array.isArray(item.subItems) && item.subItems.length > 0 
-            ? item.subItems.map(sub => ({
-                weight: sub.weight || '',
-                laborCost: sub.laborCost || ''
-              }))
-            : [{ weight: '', laborCost: '' }]
+            ? item.subItems.map(sub => ({ weight: sub.weight || '', laborCost: sub.laborCost || '' }))
+            : [{ weight: '', laborCost: '' }],
+          manualTotal: item.manualTotal || null
         }));
         
         setFormData({
@@ -701,44 +710,15 @@
           setActiveTab(Math.max(0, newDrafts.length - 1));
         }
         if (newDrafts.length > 0) {
-          const draftToLoad = newDrafts[Math.min(activeTab, newDrafts.length - 1)];
-          const normalizedItems = draftToLoad.items.map(item => ({
-            itemName: item.itemName || '',
-            quantity: item.quantity || '1',
-            qtyUnit: item.qtyUnit || '',
-            productCode: item.productCode || '',
-            subItems: Array.isArray(item.subItems) && item.subItems.length > 0 
-              ? item.subItems.map(sub => ({
-                  weight: sub.weight || '',
-                  laborCost: sub.laborCost || ''
-                }))
-              : [{ weight: '', laborCost: '' }]
-          }));
-          
-          setFormData({
-            date: draftToLoad.date || new Date().toISOString().split('T')[0],
-            clientName: draftToLoad.clientName || '',
-            goldMix: draftToLoad.goldMix || '',
-            goldPrice: draftToLoad.goldPrice || '',
-            items: normalizedItems
-          });
+          loadDraft(Math.min(activeTab, newDrafts.length - 1));
         } else {
-          setFormData({
-            date: new Date().toISOString().split('T')[0],
-            clientName: '',
-            goldMix: '',
-            goldPrice: '',
-            items: [{ 
-              itemName: '', 
-              quantity: '1',
-              qtyUnit: '',
-              productCode: '',
-              subItems: [{ weight: '', laborCost: '' }]
-            }]
-          });
+          handleReset();
         }
       };
 
+      // ======================================================================
+      // ITEM MANAGEMENT
+      // ======================================================================
       const addItem = () => {
         setFormData({
           ...formData,
@@ -747,7 +727,8 @@
             quantity: '1',
             qtyUnit: '',
             productCode: '',
-            subItems: [{ weight: '', laborCost: '' }]
+            subItems: [{ weight: '', laborCost: '' }],
+            manualTotal: null
           }]
         });
       };
@@ -767,12 +748,10 @@
           const currentQty = newItems[index].subItems.length;
           
           if (newQty > currentQty) {
-            // Add more subItems
             for (let i = currentQty; i < newQty; i++) {
               newItems[index].subItems.push({ weight: '', laborCost: '' });
             }
           } else if (newQty < currentQty) {
-            // Remove subItems
             newItems[index].subItems = newItems[index].subItems.slice(0, newQty);
           }
           newItems[index][field] = value;
@@ -789,6 +768,9 @@
         setFormData({ ...formData, items: newItems });
       };
 
+      // ======================================================================
+      // CALCULATIONS
+      // ======================================================================
       const calculateSubItemTotal = (subItem) => {
         const { weight, laborCost } = subItem;
         const { goldMix, goldPrice } = formData;
@@ -840,51 +822,85 @@
         return `${day}/${month}/${year}`;
       };
 
-      const handlePrint = () => {
-        console.log('=== PRINT DEBUG ===');
-        console.log('Full formData:', JSON.stringify(formData, null, 2));
-        console.log('Items:', formData.items);
-        formData.items.forEach((item, idx) => {
-          console.log(`Item ${idx}:`, item);
-          console.log(`  - itemName: ${item.itemName}`);
-          console.log(`  - quantity: ${item.quantity}`);
-          console.log(`  - subItems:`, item.subItems);
+      const handleReset = () => {
+        setFormData({
+          date: new Date().toISOString().split('T')[0],
+          clientName: '',
+          goldMix: '',
+          goldPrice: globalGoldPrice || '', 
+          items: [{ 
+            itemName: '', 
+            quantity: '1',
+            qtyUnit: '',
+            productCode: '',
+            subItems: [{ weight: '', laborCost: '' }],
+            manualTotal: null
+          }]
         });
+      };
+
+      // ======================================================================
+      // FILE OPERATIONS
+      // ======================================================================
+      const handleQRUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64 = event.target.result;
+            setQrCodeImage(base64);
+            localStorage.setItem('jewelryQRCode', base64);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      const handleSelectSavePath = async () => {
+        try {
+          if (typeof require !== 'undefined') {
+            try {
+              const { ipcRenderer } = require('electron');
+              const result = await ipcRenderer.invoke('select-save-path');
+              if (result && result.success) {
+                setSavePath(result.path);
+                localStorage.setItem('jewelrySavePath', result.path);
+                alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${result.path}`);
+              }
+            } catch (electronError) {
+              console.error('Electron IPC error:', electronError);
+              const folderPath = await showInput('Enter save folder path:', 'C:\\Invoices');
+              if (folderPath) {
+                setSavePath(folderPath);
+                localStorage.setItem('jewelrySavePath', folderPath);
+                alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${folderPath}`);
+              }
+            }
+          } else {
+            const folderPath = await showInput('Enter save folder path:', 'C:\\Invoices');
+            if (folderPath) {
+              setSavePath(folderPath);
+              localStorage.setItem('jewelrySavePath', folderPath);
+              alert(`ទីតាំងរក្សាទុកត្រូវបានកំណត់!\nPath set: ${folderPath}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error selecting path:', error);
+          alert('Error: ' + error.message);
+        }
+      };
+
+      const handlePrint = () => {
         setShowPrintView(true);
       };
 
       const handleSaveReceipt = async () => {
-        // Check client name first - don't save without it
         if (!formData.clientName || !formData.clientName.trim()) {
-          // Create custom popup
-          const popup = document.createElement('div');
-          popup.innerHTML = `
-            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-              <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
-                <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
-                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">មិនអាចរក្សាទុកបាន / Cannot Save</h3>
-                <p style="margin-bottom: 20px;">សូមបញ្ចូលឈ្មោះអតិថិជន!<br/>Please enter a client name!</p>
-                <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(popup);
+          alert('សូមបញ្ចូលឈ្មោះអតិថិជន!\nPlease enter a client name!');
           return;
         }
         
         if (!savePath) {
-          const popup = document.createElement('div');
-          popup.innerHTML = `
-            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-              <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
-                <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
-                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">មិនអាចរក្សាទុកបាន / Cannot Save</h3>
-                <p style="margin-bottom: 20px;">សូមជ្រើសរើសទីតាំងរក្សាទុកជាមុនសិន!<br/>Please select save path first (Go to Settings)</p>
-                <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(popup);
+          alert('សូមជ្រើសរើសទីតាំងរក្សាទុកជាមុនសិន!\nPlease select save path first (Go to Settings)');
           return;
         }
         
@@ -892,9 +908,6 @@
           if (typeof require !== 'undefined') {
             const { ipcRenderer } = require('electron');
             
-            // ======================================================================
-            // USING THE NEW TEMPLATE SYSTEM
-            // ======================================================================
             const htmlContent = await generateInvoiceHTML(
               formData,
               goldMixOptions,
@@ -903,14 +916,8 @@
               formatDate,
               roundTotal
             );
-            // ======================================================================
 
-            // Create filename with date_name_goods
-            const goodsList = formData.items
-              .map(item => item.itemName)
-              .filter(name => name)
-              .join('_');
-            
+            const goodsList = formData.items.map(item => item.itemName).filter(name => name).join('_');
             const now = new Date();
             const timeStamp = `${now.getHours().toString().padStart(2, '0')}h${now.getMinutes().toString().padStart(2, '0')}`;
             const fileName = `${formatDate(formData.date).replace(/\//g, '-')}_${formData.clientName}_${goodsList}_${timeStamp}`;
@@ -923,7 +930,6 @@
             });
                       
             if (result && result.success) {
-              // Add to payment history
               const orderSummary = formData.items
                 .map(item => `${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}`)
                 .filter(Boolean)
@@ -941,145 +947,56 @@
               
               addPaymentRecord(paymentRecord);
               
-              // Success popup with Open/Close options
-              const popup = document.createElement('div');
-              popup.innerHTML = `
-                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-                  <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; text-align: center;">
-                    <div style="font-size: 48px; color: #16a34a; margin-bottom: 15px;">✓</div>
-                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">រក្សាទុកជោគជ័យ! / Saved Successfully!</h3>
-                    <p style="margin-bottom: 10px; font-size: 14px; color: #666;">Path: ${result.path}</p>
-                    <p style="margin-bottom: 20px;">តើអ្នកចង់បើកឯកសារដើម្បីបោះពុម្ពទេ?<br/>Do you want to open the file to print?</p>
-                    <div style="display: flex; gap: 10px; justify-content: center;">
-                      <button id="closeBtn" style="background: #6b7280; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Close</button>
-                      <button id="openBtn" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Open</button>
-                    </div>
-                  </div>
-                </div>
-              `;
-              document.body.appendChild(popup);
-              
-              document.getElementById('closeBtn').onclick = () => {
-                popup.remove();
-              };
-              
-              document.getElementById('openBtn').onclick = async () => {
-                try {
-                  await ipcRenderer.invoke('open-file', result.path);
-                  popup.remove();
-                } catch (error) {
-                  alert('Error opening file: ' + error.message);
-                }
-              };
-                  
+              if (confirm(`រក្សាទុកជោគជ័យ! / Saved Successfully!\n\nPath: ${result.path}\n\nតើអ្នកចង់បើកឯកសារដើម្បីបោះពុម្ពទេ?\nDo you want to open the file to print?`)) {
+                await ipcRenderer.invoke('open-file', result.path);
+              }
             } else {
-              // Error popup
-              const popup = document.createElement('div');
-              popup.innerHTML = `
-                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-                  <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
-                    <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
-                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">បរាជ័យក្នុងការរក្សាទុក! / Save Failed!</h3>
-                    <p style="margin-bottom: 20px;">${result?.error || 'Unknown error'}</p>
-                    <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
-                  </div>
-                </div>
-              `;
-              document.body.appendChild(popup);
+              alert(`បរាជ័យក្នុងការរក្សាទុក! / Save Failed!\n\n${result?.error || 'Unknown error'}`);
             }
           } else {
             alert('Save feature only works in desktop app');
           }
         } catch (error) {
           console.error('Save error:', error);
-          const popup = document.createElement('div');
-          popup.innerHTML = `
-            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-              <div style="background: white; padding: 30px; border-radius: 10px; max-width: 400px; text-align: center;">
-                <div style="font-size: 48px; color: #dc2626; margin-bottom: 15px;">✗</div>
-                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Error!</h3>
-                <p style="margin-bottom: 20px;">${error.message}</p>
-                <button onclick="this.closest('div').parentElement.remove()" style="background: #3b82f6; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">OK</button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(popup);
+          alert(`Error: ${error.message}`);
         }
       };
 
-      const handleReset = () => {
-        setFormData({
-          date: new Date().toISOString().split('T')[0],
-          clientName: '',
-          goldMix: '',
-          goldPrice: '',
-          items: [{ 
-            itemName: '', 
-            quantity: '1',
-            qtyUnit: '',
-            productCode: '',
-            subItems: [{ weight: '', laborCost: '' }]
-          }]
-        });
-      };
-
-      const toggleTheme = () => {
-        const newTheme = theme === 'light' ? 'dark' : 'light';
-        setTheme(newTheme);
-        localStorage.setItem('jewelryTheme', newTheme);
-      };
-
-      const saveItemTypeOptions = (newOptions) => {
-        setItemTypeOptions(newOptions);
-        localStorage.setItem('jewelryItemTypes', JSON.stringify(newOptions));
-      };
-
-      const saveGoldMixOptions = (newOptions) => {
-        setGoldMixOptions(newOptions);
-        localStorage.setItem('jewelryGoldMix', JSON.stringify(newOptions));
-      };
-
-      const saveQtyUnitOptions = (newOptions) => {
-        setQtyUnitOptions(newOptions);
-        localStorage.setItem('jewelryQtyUnits', JSON.stringify(newOptions));
-      };
-
-      const addItemType = (newType) => {
-        const updated = [...itemTypeOptions, newType];
-        saveItemTypeOptions(updated);
-      };
-
-      const removeItemType = (typeToRemove) => {
-        const updated = itemTypeOptions.filter(t => t !== typeToRemove);
-        saveItemTypeOptions(updated);
-      };
-
+      // ======================================================================
+      // SETTINGS OPTIONS MANAGEMENT
+      // ======================================================================
       const addQtyUnit = (newUnit) => {
         const updated = [...qtyUnitOptions, newUnit];
-        saveQtyUnitOptions(updated);
+        setQtyUnitOptions(updated);
+        localStorage.setItem('jewelryQtyUnits', JSON.stringify(updated));
       };
 
       const removeQtyUnit = (unitToRemove) => {
         const updated = qtyUnitOptions.filter(u => u !== unitToRemove);
-        saveQtyUnitOptions(updated);
+        setQtyUnitOptions(updated);
+        localStorage.setItem('jewelryQtyUnits', JSON.stringify(updated));
       };
 
       const addGoldMix = (newMix) => {
-        // Check for duplicate value
         const isDuplicate = goldMixOptions.some(mix => mix.value === newMix.value);
         if (isDuplicate) {
           alert(`❌ Error: Value "${newMix.value}" already exists!\nPlease use a unique value.`);
           return;
         }
         const updated = [...goldMixOptions, newMix];
-        saveGoldMixOptions(updated);
+        setGoldMixOptions(updated);
+        localStorage.setItem('jewelryGoldMix', JSON.stringify(updated));
       };
 
       const removeGoldMix = (valueToRemove) => {
         const updated = goldMixOptions.filter(m => m.value !== valueToRemove);
-        saveGoldMixOptions(updated);
+        setGoldMixOptions(updated);
+        localStorage.setItem('jewelryGoldMix', JSON.stringify(updated));
       };
 
+      // ======================================================================
+      // PAYMENT HISTORY
+      // ======================================================================
       const addPaymentRecord = (record) => {
         const updated = [record, ...paymentHistory];
         setPaymentHistory(updated);
@@ -1119,54 +1036,23 @@
         }
       };
 
-      // Theme configuration
-      const themeColors = {
-        light: {
-          bg: 'bg-gray-50',
-          cardBg: 'bg-white',
-          text: 'text-gray-800',
-          textSecondary: 'text-gray-600',
-          border: 'border-gray-300',
-          accent: 'bg-blue-600',
-          accentHover: 'hover:bg-blue-700',
-          accentText: 'text-blue-600',
-          sidebarBg: 'bg-white',
-          inputBg: 'bg-white',
-          headerBg: 'bg-white',
-          headerBorder: 'border-gray-200'
-        },
-        dark: {
-          bg: 'bg-[#24293E]',
-          cardBg: 'bg-[#2D3250]',
-          text: 'text-[#F4F5FC]',
-          textSecondary: 'text-[#CCCCCC]',
-          border: 'border-[#3D4463]',
-          accent: 'bg-[#8EBBFF]',
-          accentHover: 'hover:bg-[#7AABEF]',
-          accentText: 'text-[#8EBBFF]',
-          sidebarBg: 'bg-[#2D3250]',
-          inputBg: 'bg-[#363C54]',
-          headerBg: 'bg-[#2D3250]',
-          headerBorder: 'border-[#3D4463]'
-        }
-      };
-      
-      const currentTheme = themeColors[theme];
-
       const totals = calculateTotals();
 
+      // ======================================================================
+      // PAYMENT HISTORY PAGE
+      // ======================================================================
       if (currentPage === 'payment') {
         return (
           <div className="min-h-screen bg-gray-50">
-            {/* Header */}
             <Header 
               formData={formData}
               setFormData={setFormData}
               saveDraft={saveDraft}
               handleSaveReceipt={handleSaveReceipt}
+              globalGoldPrice={globalGoldPrice}
+              setGlobalGoldPrice={setGlobalGoldPrice}
             />
 
-            {/* Main Layout */}
             <div className="flex pt-20">
               <Sidebar 
                 currentPage={currentPage}
@@ -1179,18 +1065,14 @@
                 restartPrintSpooler={restartPrintSpooler}
               />
 
-              {/* Payment History Content */}
               <div className="flex-1 ml-64 p-8">
                 <h2 className="text-2xl font-bold mb-6">ប្រវត្តិការទូទាត់ / Payment History</h2>
 
-              {/* Pending Section */}
               <div className="mb-8">
                 <h3 className="text-xl font-semibold mb-4 text-yellow-700">⏳ Pending Orders</h3>
                 <div className="bg-white rounded-lg shadow">
                   {paymentHistory.filter(r => r.status === 'pending').length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      No pending orders
-                    </div>
+                    <div className="p-8 text-center text-gray-500">No pending orders</div>
                   ) : (
                     <div className="divide-y">
                       {paymentHistory.filter(r => r.status === 'pending').map((record) => (
@@ -1229,14 +1111,11 @@
                 </div>
               </div>
 
-              {/* History Section */}
               <div>
                 <h3 className="text-xl font-semibold mb-4 text-gray-700">📋 History</h3>
                 <div className="bg-white rounded-lg shadow">
                   {paymentHistory.filter(r => r.status !== 'pending').length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      No history yet
-                    </div>
+                    <div className="p-8 text-center text-gray-500">No history yet</div>
                   ) : (
                     <div className="divide-y">
                       {paymentHistory.filter(r => r.status !== 'pending').map((record) => {
@@ -1279,18 +1158,21 @@
         );
       }
 
+      // ======================================================================
+      // SETTINGS PAGE
+      // ======================================================================
       if (currentPage === 'settings') {
         return (
           <div className="min-h-screen bg-gray-50">
-            {/* Header */}
             <Header 
               formData={formData}
               setFormData={setFormData}
               saveDraft={saveDraft}
               handleSaveReceipt={handleSaveReceipt}
+              globalGoldPrice={globalGoldPrice}
+              setGlobalGoldPrice={setGlobalGoldPrice}
             />
 
-            {/* Main Layout */}
             <div className="flex pt-20">
               <Sidebar 
                 currentPage={currentPage}
@@ -1303,7 +1185,15 @@
                 restartPrintSpooler={restartPrintSpooler}
               />
 
-              {/* Settings Content */}
+              {/* Input Modal */}
+              <InputModal
+                isOpen={showInputModal}
+                title={inputModalData.title}
+                defaultValue={inputModalData.defaultValue}
+                onSubmit={inputModalData.onSubmit}
+                onCancel={closeInputModal}
+              />
+
               <div className="flex-1 ml-64 p-8">
                 <h2 className="text-2xl font-bold mb-6">ការកំណត់ / Settings</h2>
 
@@ -1385,10 +1275,10 @@
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">ប្រភេទគ្រឿង / Type of Goods (Grouped)</h3>
                   <button
-                    onClick={() => {
-                      const groupName = prompt('Enter group name:');
-                      if (groupName && groupName.trim()) {
-                        addGroup(groupName.trim());
+                    onClick={async () => {
+                      const groupName = await showInput('Enter group name:');
+                      if (groupName) {
+                        addGroup(groupName);
                       }
                     }}
                     className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
@@ -1408,10 +1298,10 @@
                           <h4 className="font-semibold text-md text-blue-700">{group.name}</h4>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => {
-                                const newName = prompt('Rename group:', group.name);
-                                if (newName && newName.trim()) {
-                                  renameGroup(groupIdx, newName.trim());
+                              onClick={async () => {
+                                const newName = await showInput('Rename group:', group.name);
+                                if (newName) {
+                                  renameGroup(groupIdx, newName);
                                 }
                               }}
                               className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
@@ -1553,7 +1443,6 @@
                       const valueInput = document.getElementById('newGoldValue');
                       if (labelInput.value.trim() && valueInput.value.trim()) {
                         const newMix = { label: labelInput.value.trim(), value: valueInput.value.trim() };
-                        // Check for duplicate before clearing inputs
                         const isDuplicate = goldMixOptions.some(mix => mix.value === newMix.value);
                         addGoldMix(newMix);
                         if (!isDuplicate) {
@@ -1592,11 +1481,14 @@
         );
       }
 
+      // ======================================================================
+      // PRINT VIEW
+      // ======================================================================
       if (showPrintView) {
         return (
           <div className="min-h-screen bg-white p-8">
             <div className="max-w-3xl mx-auto">
-              <div className="mb-8">
+              <div className="mb-8 no-print">
                 <button
                   onClick={() => setShowPrintView(false)}
                   className="mb-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
@@ -1670,19 +1562,16 @@
                         });
                       }
                       
-                      const weightDisplay = totalW.toFixed(1);
-                      const laborDisplay = totalL;
-                      
                       return (
-                        <tr key={`item-${idx}-${item.itemName}`} className="border-b border-gray-200">
+                        <tr key={`item-${idx}`} className="border-b border-gray-200">
                           <td className="py-3 px-2">
                             {item.itemName}
                             {item.productCode && ` N${item.productCode}`}
                           </td>
                           <td className="text-center py-3 px-2">{item.quantity}{item.qtyUnit}</td>
-                          <td className="text-center py-3 px-2">{weightDisplay}</td>
-                          <td className="text-right py-3 px-2">${laborDisplay}</td>
-                          <td className="text-right py-3 px-2 font-semibold">${Math.round(calculateItemTotal(item)).toLocaleString()}</td>
+                          <td className="text-center py-3 px-2">{totalW.toFixed(1)}</td>
+                          <td className="text-right py-3 px-2">${totalL}</td>
+                          <td className="text-right py-3 px-2 font-semibold">${roundTotal(calculateItemTotal(item)).toLocaleString()}</td>
                         </tr>
                       );
                     })}
@@ -1703,7 +1592,7 @@
                   <div className="text-right">
                     <div className="text-2xl font-bold mb-1">
                       <span className="mr-4">សរុបរួម / GRAND TOTAL:</span>
-                      <span className="text-3xl">${Math.round(calculateGrandTotal()).toLocaleString()}</span>
+                      <span className="text-3xl">${calculateGrandTotal().toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -1715,24 +1604,41 @@
                 )}
               </div>
             </div>
+            
+            <style>{`
+              @media print {
+                @page {
+                  size: A4;
+                  margin: 10mm;
+                }
+                .no-print {
+                  display: none !important;
+                }
+                body {
+                  print-color-adjust: exact;
+                  -webkit-print-color-adjust: exact;
+                }
+              }
+            `}</style>
           </div>
         );
       }
 
-      // INVOICE PAGE - WITH HEADER
+      // ======================================================================
+      // INVOICE PAGE (MAIN)
+      // ======================================================================
       return (
         <div className="min-h-screen bg-gray-50">
-          {/* Header - Fixed at top */}
           <Header 
             formData={formData}
             setFormData={setFormData}
             saveDraft={saveDraft}
             handleSaveReceipt={handleSaveReceipt}
+            globalGoldPrice={globalGoldPrice}
+            setGlobalGoldPrice={setGlobalGoldPrice}
           />
 
-          {/* Main Layout Container */}
           <div className="flex pt-20">
-            {/* Sidebar - Fixed on left */}
             <Sidebar 
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
@@ -1757,7 +1663,6 @@
               />
             )}
 
-            {/* Main Content Area - with left margin for sidebar */}
             <div className="flex-1 ml-64 p-8">
               <div className="max-w-4xl mx-auto">
                 <div className="bg-white rounded-lg shadow-sm p-6">
@@ -1815,6 +1720,11 @@
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   ហាងឆេង / Gold Market Price
+                  {globalGoldPrice && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Default: ${globalGoldPrice})
+                    </span>
+                  )}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-gray-500">$</span>
@@ -1823,6 +1733,7 @@
                     step="1"
                     value={formData.goldPrice}
                     onChange={(e) => setFormData({ ...formData, goldPrice: e.target.value })}
+                    placeholder={globalGoldPrice || 'Enter price'}
                     className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -1893,10 +1804,10 @@
                             <input
                               type="number"
                               step="1"
-                              value={item.manualTotal !== null ? item.manualTotal : calculateItemTotal(item)}
+                              value={item.manualTotal !== null ? item.manualTotal : ''}
                               onChange={(e) => updateItem(idx, 'manualTotal', e.target.value === '' ? null : e.target.value)}
                               className="w-24 text-sm font-semibold text-gray-700 px-2 py-2 bg-white rounded border border-gray-300 focus:ring-2 focus:ring-blue-500"
-                              placeholder={getCalculatedTotal(item).toString()}
+                              placeholder={roundTotal(getCalculatedTotal(item)).toString()}
                             />
                             {item.manualTotal !== null && (
                               <button
@@ -1919,7 +1830,6 @@
                     )}
                   </div>
 
-                  {/* Sub-items for each quantity */}
                   <div className="ml-4 space-y-2">
                     {item.subItems.map((subItem, subIdx) => (
                       <div key={subIdx} className="flex gap-2 items-center bg-white p-2 rounded border border-gray-200">
@@ -1948,7 +1858,7 @@
                           </div>
                         </div>
                         <div className="w-24 text-right text-sm font-semibold text-gray-700">
-                          ${calculateSubItemTotal(subItem).toLocaleString()}
+                          ${calculateSubItemTotal(subItem).toFixed(2)}
                         </div>
                       </div>
                     ))}
@@ -1981,7 +1891,7 @@
             <div className="border-t pt-4 mt-6">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-gray-700">សរុបរួម / Grand Total:</span>
-                <span className="text-2xl font-bold text-blue-600">${Math.round(calculateGrandTotal()).toLocaleString()}</span>
+                <span className="text-2xl font-bold text-blue-600">${calculateGrandTotal().toLocaleString()}</span>
               </div>
             </div>
 
@@ -2004,27 +1914,13 @@
               </div>
             </div>
           </div>
+        </div>
+        </div>
+      );
+    }
 
-          <style>{`
-              @media print {
-                @page {
-                  size: A4;
-                  margin: 10mm;
-                }
-                body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-                .print\\:hidden { display: none !important; }
-                .print\\:shadow-none { box-shadow: none !important; }
-                .print\\:border-none { border: none !important; }
-                input, select { border: none !important; background: transparent !important; }
-              }
-            `}</style>
-          </div>
-          </div>
-        );
-      }
-
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<ReceiptCalculator />);
-    </script>
-  </body>
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ReceiptCalculator />);
+  </script>
+</body>
 </html>
