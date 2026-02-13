@@ -5,11 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Olympia Invoice</title>
   
-  <!-- React Libraries -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & Babel (Local) -->
+  <script crossorigin src="./libs/react.production.min.js"></script>
+  <script crossorigin src="./libs/react-dom.production.min.js"></script>
+  <script src="./libs/babel.min.js"></script>
+  
+  <!-- Tailwind CSS - Online with Offline Fallback -->
+  <script>
+    // Try to load Tailwind from CDN
+    const tailwindCDN = document.createElement('script');
+    tailwindCDN.src = 'https://cdn.tailwindcss.com';
+    tailwindCDN.onerror = function() {
+      // If CDN fails (no internet), load local CSS
+      console.log('📡 No internet detected - Loading local Tailwind CSS fallback');
+      const localCSS = document.createElement('link');
+      localCSS.rel = 'stylesheet';
+      localCSS.href = './libs/tailwind.min.css';
+      document.head.appendChild(localCSS);
+    };
+    tailwindCDN.onload = function() {
+      console.log('✅ Tailwind CDN loaded successfully');
+    };
+    document.head.appendChild(tailwindCDN);
+  </script>
   
   <!-- Custom Theme Colors -->
   <style>
@@ -43,13 +61,12 @@
 <body>
   <div id="root"></div>
   
-  <!-- Load Utilities First (no dependencies) -->
+  <!-- Load all component files -->
   <script type="text/babel" src="./utils/calculations.js"></script>
   <script type="text/babel" src="./utils/storage.js"></script>
   <script type="text/babel" src="./utils/groupManagement.js"></script>
   <script type="text/babel" src="./utils/fileOperations.js"></script>
   
-  <!-- Load Components (depend on utilities) -->
   <script type="text/babel" src="./components/Icons.js"></script>
   <script type="text/babel" src="./components/InvoiceTemplate.js"></script>
   <script type="text/babel" src="./components/Header.js"></script>
@@ -59,13 +76,11 @@
   <script type="text/babel" src="./components/InputModal.js"></script>
   <script type="text/babel" src="./components/CustomPopup.js"></script>
   
-  <!-- Load Pages (depend on components) -->
   <script type="text/babel" src="./pages/InvoicePage.js"></script>
   <script type="text/babel" src="./pages/PaymentHistoryPage.js"></script>
   <script type="text/babel" src="./pages/SettingsPage.js"></script>
   <script type="text/babel" src="./pages/PrintView.js"></script>
   
-  <!-- Load Main App (depends on everything) -->
   <script type="text/babel" src="./App.js"></script>
 </body>
 </html>
