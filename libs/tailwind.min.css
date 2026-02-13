@@ -39,6 +39,7 @@ button, select {
 
 button, [type='button'], [type='reset'], [type='submit'] {
   -webkit-appearance: button;
+  appearance: button;
   background-color: transparent;
   background-image: none;
   cursor: pointer;
@@ -62,12 +63,10 @@ a {
 
 svg { 
   display: block; 
-  vertical-align: middle; 
 }
 
 img, svg, video, canvas, audio, iframe, embed, object {
   display: block;
-  vertical-align: middle;
 }
 
 img, video {
