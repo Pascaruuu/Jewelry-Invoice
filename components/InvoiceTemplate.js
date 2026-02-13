@@ -103,7 +103,7 @@ function getDefaultInvoiceTemplate() {
 </html>`;
 }
 
-async function generateInvoiceHTML(formData, goldMixOptions, qrCodeImage, calculateItemTotal, formatDate, roundTotal) {
+async function generateInvoiceHTML(formData, goldMixOptions, qrCodeImage, calculateItemTotal, formatDate, roundTotal, globalGoldPrice) {
   const template = await loadInvoiceTemplate();
   
   const totals = {
@@ -139,11 +139,16 @@ async function generateInvoiceHTML(formData, goldMixOptions, qrCodeImage, calcul
     ? `<div class="qr-code"><img src="${qrCodeImage}" alt="Payment QR Code" /></div>` 
     : '';
 
+  // Use formData.goldPrice if set (and not empty), otherwise use globalGoldPrice
+  const displayGoldPrice = (formData.goldPrice && formData.goldPrice.trim() !== '') 
+    ? formData.goldPrice 
+    : (globalGoldPrice || '');
+
   let html = template
     .replace(/{{CLIENT_NAME}}/g, formData.clientName)
     .replace(/{{DATE}}/g, formatDate(formData.date))
     .replace(/{{GOLD_MIX}}/g, goldMixOptions.find(o => o.value === formData.goldMix)?.label || '')
-    .replace(/{{GOLD_PRICE}}/g, effectiveGoldPrice)
+    .replace(/{{GOLD_PRICE}}/g, displayGoldPrice)
     .replace(/{{ITEMS_ROWS}}/g, itemsRows)
     .replace(/{{TOTAL_QTY}}/g, totals.totalQty)
     .replace(/{{TOTAL_WEIGHT}}/g, totals.totalWeight.toFixed(1))

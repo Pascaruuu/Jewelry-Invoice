@@ -242,7 +242,19 @@ function ReceiptCalculator() {
   // ======================================================================
   const saveDraft = async () => {
     const newDrafts = [...drafts];
-    newDrafts[activeTab] = { ...formData, timestamp: new Date().toISOString() };
+    
+    // Create draft data
+    const draftData = { 
+      ...formData, 
+      timestamp: new Date().toISOString() 
+    };
+    
+    // If goldPrice field is empty (using global), don't save it
+    if (!formData.goldPrice || formData.goldPrice.trim() === '') {
+      delete draftData.goldPrice;
+    }
+    
+    newDrafts[activeTab] = draftData;
     setDrafts(newDrafts);
     localStorage.setItem('jewelryDrafts', JSON.stringify(newDrafts));
     await showPopup('success', 'រក្សាទុក / Saved', 'ទិន្នន័យត្រូវបានរក្សាទុក!\nDraft saved!');
@@ -253,8 +265,8 @@ function ReceiptCalculator() {
       date: new Date().toISOString().split('T')[0],
       clientName: '',
       goldMix: '',
-      goldPrice: globalGoldPrice || '', 
-      manualGoldPrice: null,
+      // Don't set goldPrice - let it use global
+      goldPrice: '',
       items: [{ 
         itemName: '', 
         quantity: '1',
@@ -272,7 +284,7 @@ function ReceiptCalculator() {
     localStorage.setItem('jewelryDrafts', JSON.stringify(newDrafts));
   };
 
-  const loadDraft = (index) => {
+    const loadDraft = (index) => {
     setActiveTab(index);
     const draft = drafts[index];
     
@@ -291,8 +303,7 @@ function ReceiptCalculator() {
       date: draft.date || new Date().toISOString().split('T')[0],
       clientName: draft.clientName || '',
       goldMix: draft.goldMix || '',
-      goldPrice: draft.goldPrice || '',
-      manualGoldPrice: draft.manualGoldPrice || null,
+      goldPrice: draft.hasOwnProperty('goldPrice') ? draft.goldPrice : '',
       items: normalizedItems
     });
   };
@@ -419,21 +430,20 @@ function ReceiptCalculator() {
     };
 
     const handleReset = () => {
-    setFormData({
+      setFormData({
         date: new Date().toISOString().split('T')[0],
         clientName: '',
         goldMix: '',
-        goldPrice: globalGoldPrice || '', 
-        manualGoldPrice: null,
+        goldPrice: '',
         items: [{ 
-        itemName: '', 
-        quantity: '1',
-        qtyUnit: '',
-        productCode: '',
-        subItems: [{ weight: '', laborCost: '' }],
-        manualTotal: null
+          itemName: '', 
+          quantity: '1',
+          qtyUnit: '',
+          productCode: '',
+          subItems: [{ weight: '', laborCost: '' }],
+          manualTotal: null
         }]
-    });
+      });
     };
 
     // Get effective gold price (manual override or global)
@@ -527,7 +537,8 @@ function ReceiptCalculator() {
           qrCodeImage,
           calculateItemTotal,
           formatDate,
-          roundTotal
+          roundTotal,
+          getEffectiveGoldPrice
         );
 
         const goodsList = formData.items.map(item => item.itemName).filter(name => name).join('_');
