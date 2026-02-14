@@ -3,11 +3,8 @@
 // ======================================================================
 
 function Sidebar({ currentPage, setCurrentPage, drafts, activeTab, loadDraft, deleteDraft, addNewDraft, restartPrintSpooler }) {
-  // Get icons from window (loaded from Icons.js)
-  const { Plus, X } = window.Icons || {};
-
   return (
-    <div className="fixed left-0 top-20 bottom-0 w-64 bg-tertiary shadow-lg p-4 overflow-y-auto">
+    <div className="fixed left-0 top-20 bottom-0 w-64 bg-tertiary shadow-lg p-4 pt-6 overflow-y-auto">
       <div className="space-y-2 mb-6">
         <button
           onClick={() => setCurrentPage('invoice')}
@@ -40,6 +37,16 @@ function Sidebar({ currentPage, setCurrentPage, drafts, activeTab, loadDraft, de
           ⚙️ Settings
         </button>
         <button
+          onClick={() => setCurrentPage('files')}
+          className={`w-full text-left px-4 py-2 rounded transition-colors ${
+            currentPage === 'files' 
+              ? 'bg-primary text-white font-semibold' 
+              : 'text-primary hover:bg-accent'
+          }`}
+        >
+          📁 Saved Files
+        </button>
+        <button
           onClick={restartPrintSpooler}
           className="w-full text-left px-4 py-2 rounded bg-red-100 text-red-700 hover:bg-red-200 font-semibold transition-colors"
         >
@@ -54,7 +61,7 @@ function Sidebar({ currentPage, setCurrentPage, drafts, activeTab, loadDraft, de
             onClick={addNewDraft}
             className="w-6 h-6 bg-secondary text-white rounded flex items-center justify-center hover:bg-primary transition-colors"
           >
-            {Plus && <Plus size={14} />}
+            <Plus size={14} />
           </button>
         </div>
         <div className="space-y-1 max-h-96 overflow-y-auto">
@@ -80,7 +87,7 @@ function Sidebar({ currentPage, setCurrentPage, drafts, activeTab, loadDraft, de
                   }}
                   className="opacity-0 group-hover:opacity-100"
                 >
-                  {X && <X size={12} />}
+                  <X size={12} />
                 </button>
               </button>
             );
@@ -91,5 +98,4 @@ function Sidebar({ currentPage, setCurrentPage, drafts, activeTab, loadDraft, de
   );
 }
 
-// Make component available globally
 window.Sidebar = Sidebar;

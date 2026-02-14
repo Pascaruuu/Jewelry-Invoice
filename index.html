@@ -10,23 +10,35 @@
   <script crossorigin src="./libs/react-dom.production.min.js"></script>
   <script src="./libs/babel.min.js"></script>
   
-  <!-- Tailwind CSS - Online with Offline Fallback -->
+  <!-- Tailwind CSS - Smart Loading -->
   <script>
-    // Try to load Tailwind from CDN
-    const tailwindCDN = document.createElement('script');
-    tailwindCDN.src = 'https://cdn.tailwindcss.com';
-    tailwindCDN.onerror = function() {
-      // If CDN fails (no internet), load local CSS
-      console.log('📡 No internet detected - Loading local Tailwind CSS fallback');
+    // Detect if running in Electron
+    const isElectron = typeof process !== 'undefined' && process.versions?.electron;
+    
+    if (isElectron) {
+      // In Electron: Use local CSS immediately (no CDN delay)
+      console.log('⚡ Electron detected - Using local Tailwind CSS');
       const localCSS = document.createElement('link');
       localCSS.rel = 'stylesheet';
       localCSS.href = './libs/tailwind.min.css';
       document.head.appendChild(localCSS);
-    };
-    tailwindCDN.onload = function() {
-      console.log('✅ Tailwind CDN loaded successfully');
-    };
-    document.head.appendChild(tailwindCDN);
+    } else {
+      // In Browser: Try CDN with local fallback
+      console.log('🌐 Browser detected - Trying Tailwind CDN');
+      const tailwindCDN = document.createElement('script');
+      tailwindCDN.src = 'https://cdn.tailwindcss.com';
+      tailwindCDN.onerror = function() {
+        console.log('📡 No internet - Loading local Tailwind CSS');
+        const localCSS = document.createElement('link');
+        localCSS.rel = 'stylesheet';
+        localCSS.href = './libs/tailwind.min.css';
+        document.head.appendChild(localCSS);
+      };
+      tailwindCDN.onload = function() {
+        console.log('✅ Tailwind CDN loaded successfully');
+      };
+      document.head.appendChild(tailwindCDN);
+    }
   </script>
   
   <!-- Custom Theme Colors -->
@@ -56,9 +68,45 @@
     .hover\\:bg-primary:hover { background-color: var(--primary); }
     .hover\\:bg-secondary:hover { background-color: var(--secondary); }
     .hover\\:bg-accent:hover { background-color: var(--accent); }
+    
+    /* Refresh Button Styles */
+    #refresh-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 10000;
+      background-color: rgba(75, 124, 130, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s;
+    }
+    
+    #refresh-btn:hover {
+      background-color: rgba(11, 46, 51, 0.95);
+      transform: rotate(180deg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    #refresh-btn:active {
+      transform: rotate(180deg) scale(0.95);
+    }
   </style>
 </head>
 <body>
+  <!-- Refresh Button -->
+  <button id="refresh-btn" title="Refresh (Ctrl+R)" onclick="location.reload()">
+    ↻
+  </button>
+
   <div id="root"></div>
   
   <!-- Load all component files -->
@@ -80,6 +128,7 @@
   <script type="text/babel" src="./pages/PaymentHistoryPage.js"></script>
   <script type="text/babel" src="./pages/SettingsPage.js"></script>
   <script type="text/babel" src="./pages/PrintView.js"></script>
+  <script type="text/babel" src="./pages/SavedFilesPage.js"></script>
   
   <script type="text/babel" src="./App.js"></script>
 </body>

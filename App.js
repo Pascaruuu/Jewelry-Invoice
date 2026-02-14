@@ -7,7 +7,7 @@ const { useState, useEffect } = React;
 function ReceiptCalculator() {
   // Get components from window
   const { Header, Sidebar, GroupedTypeSelector, GroupedClientSelector, InputModal, CustomPopup } = window;
-  const { InvoicePage, PaymentHistoryPage, SettingsPage, PrintView } = window;
+  const { InvoicePage, PaymentHistoryPage, SettingsPage, PrintView, SavedFilesPage } = window;
 
   // State declarations
   const [showPrintView, setShowPrintView] = useState(false);
@@ -674,6 +674,35 @@ function ReceiptCalculator() {
   };
 
   // ======================================================================
+  // SAVED FILES MANAGEMENT
+  // ======================================================================
+
+  const openFile = async (filePath) => {
+  try {
+    if (typeof require !== 'undefined') {
+      const { ipcRenderer } = require('electron');
+      await ipcRenderer.invoke('open-file', filePath);
+    }
+  } catch (error) {
+    console.error('Error opening file:', error);
+  }
+};
+
+const deleteFile = async (filePath) => {
+  try {
+    if (typeof require !== 'undefined') {
+      const { ipcRenderer } = require('electron');
+      const result = await ipcRenderer.invoke('delete-file', filePath);
+      if (result.success) {
+        await showPopup('success', 'Deleted', 'File deleted successfully');
+      }
+    }
+  } catch (error) {
+    await showPopup('error', 'Error', error.message);
+  }
+};
+
+  // ======================================================================
   // RENDER PAGES
   // ======================================================================
   
@@ -815,6 +844,51 @@ function ReceiptCalculator() {
     );
   }
 
+  // Saved files Page
+  if (currentPage === 'files') {
+    return (
+      <div className="min-h-screen bg-accent">
+        <Header 
+          formData={formData}
+          setFormData={setFormData}
+          saveDraft={saveDraft}
+          handleSaveReceipt={handleSaveReceipt}
+          globalGoldPrice={globalGoldPrice}
+          setGlobalGoldPrice={setGlobalGoldPrice}
+        />
+
+        <div className="flex pt-20">
+          <Sidebar 
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            drafts={drafts}
+            activeTab={activeTab}
+            loadDraft={loadDraft}
+            deleteDraft={deleteDraft}
+            addNewDraft={addNewDraft}
+            restartPrintSpooler={restartPrintSpooler}
+          />
+
+          {popup && (
+            <CustomPopup
+              type={popup.type}
+              title={popup.title}
+              message={popup.message}
+              onConfirm={popup.onConfirm}
+              onCancel={popup.onCancel}
+              showCancel={popup.showCancel}
+            />
+          )}
+
+          <SavedFilesPage 
+            savePath={savePath}
+            setCurrentPage={setCurrentPage}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // Invoice Page (Default)
   return (
     <div className="min-h-screen bg-accent">
@@ -906,6 +980,7 @@ function ReceiptCalculator() {
       </div>
     </div>
   );
+  
 }
 
 // Render the app
