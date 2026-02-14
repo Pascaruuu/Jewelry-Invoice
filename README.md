@@ -291,4 +291,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - Portfolio: [pascaruuu.github.io/Portfolio](https://pascaruuu.github.io/Portfolio/)
 - GitHub: [@Pascaruuu](https://github.com/Pascaruuu)
 - Project: [Jewelry-Invoice](https://github.com/Pascaruuu/Jewelry-Invoice)
-
