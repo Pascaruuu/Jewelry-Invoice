@@ -2,7 +2,6 @@
 
 A professional desktop application for managing jewelry invoices in Cambodia, built with Electron and React. Designed specifically for jewelry businesses that need bilingual (Khmer-English) invoicing with custom gold pricing calculations.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-Latest-47848F.svg)
 ![React](https://img.shields.io/badge/React-18-61DAFB.svg)
