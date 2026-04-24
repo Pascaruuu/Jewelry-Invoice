@@ -4,77 +4,96 @@
   <meta charset="UTF-8">
   <title>Invoice - {{CLIENT_NAME}}</title>
   <style>
+    :root {
+      --invoice-border: #d8d8d8;
+      --invoice-muted: #f3f3f3;
+      --invoice-text: #1a1a18;
+      --invoice-secondary-text: #545450;
+    }
     body { 
-      font-family: Arial, sans-serif; 
-      padding: 20px; 
+      font-family: Arial, sans-serif;
+      padding: 24px;
       margin: 0;
+      color: var(--invoice-text);
+      background: #ffffff;
     }
     .header { 
       text-align: center; 
-      margin-bottom: 30px; 
+      margin-bottom: 24px; 
     }
     .header h1 { 
-      font-size: 30px; 
-      margin: 10px 0; 
+      font-size: 26px; 
+      margin: 6px 0; 
     }
     .header p { 
-      font-size: 22px; 
-      margin: 10px 0; 
+      color: var(--invoice-secondary-text);
+      font-size: 16px; 
+      line-height: 1.45;
+      margin: 8px 0; 
     }
     .header h2 { 
-      font-size: 24px; 
-      margin: 20px 0 10px 0; 
+      font-size: 22px; 
+      margin: 18px 0 8px 0; 
+      letter-spacing: 0.04em;
     }
     .contact-info { 
       display: flex; 
       justify-content: space-between; 
-      margin-bottom: 20px; 
+      gap: 24px;
+      margin-bottom: 18px; 
     }
     .contact-info p { 
-      font-size: 19px; 
+      font-size: 15px; 
+      line-height: 1.5;
       margin: 5px 0; 
     }
     .info { 
-      margin: 20px 0; 
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 24px;
+      margin: 18px 0;
+      padding: 14px;
+      border: 1px solid var(--invoice-border);
     }
     .info p { 
-      margin: 8px 0; 
-      font-size: 16px; 
+      margin: 0; 
+      font-size: 14px; 
     }
     .info strong { 
       font-weight: 600; 
     }
     .client-name { 
-      font-size: 22px; 
+      font-size: 17px; 
     }
     table { 
       width: 100%; 
       border-collapse: collapse; 
-      margin: 20px 0; 
+      margin: 18px 0; 
     }
     th, td { 
-      border: 1px solid #ddd; 
-      padding: 8px; 
+      border: 1px solid var(--invoice-border); 
+      padding: 9px 10px; 
       text-align: left; 
+      font-size: 14px;
     }
     th { 
-      background-color: #f2f2f2; 
+      background-color: var(--invoice-muted); 
       font-weight: bold; 
     }
     .totals { 
       font-weight: bold; 
-      background-color: #f9f9f9; 
+      background-color: var(--invoice-muted); 
     }
     .grand-total { 
       text-align: right; 
-      font-size: 24px; 
+      font-size: 22px; 
       font-weight: bold; 
-      margin: 20px 0; 
+      margin: 18px 0; 
     }
     .disclaimer { 
-      font-size: 18px; 
+      font-size: 15px; 
       margin-top: 20px; 
-      color: #333; 
+      color: var(--invoice-secondary-text); 
     }
     .qr-code { 
       text-align: center; 
@@ -83,6 +102,15 @@
     .qr-code img { 
       width: auto; 
       height: 220px; 
+    }
+    @media print {
+      body { padding: 0; }
+    }
+    .align-center {
+      text-align: center;
+    }
+    .align-right {
+      text-align: right;
     }
   </style>
 </head>
@@ -98,7 +126,7 @@
       <p><strong>TEL:</strong> 012205358<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;061848616</p>
     </div>
-    <div style="text-align: right;">
+    <div class="align-right">
       <p>ផ្ទះលេខ10C1E0 ផ្លូវលេខ211<br/>សង្កាត់វាលវង់ ខណ្ឌ៧មករា</p>
     </div>
   </div>
@@ -114,19 +142,19 @@
     <thead>
       <tr>
         <th>ប្រភេទគ្រឿង<br/>Type of Goods</th>
-        <th style="text-align: center;">ចំនួន<br/>Qty</th>
-        <th style="text-align: center;">ទំងន់<br/>Weight (l)</th>
-        <th style="text-align: right;">ឈ្នួល<br/>Labor</th>
-        <th style="text-align: right;">សរុប<br/>Total</th>
+        <th class="align-center">ចំនួន<br/>Qty</th>
+        <th class="align-center">ទំងន់<br/>Weight (l)</th>
+        <th class="align-right">ឈ្នួល<br/>Labor</th>
+        <th class="align-right">សរុប<br/>Total</th>
       </tr>
     </thead>
     <tbody>
       {{ITEMS_ROWS}}
       <tr class="totals">
         <td>សរុប / TOTAL</td>
-        <td style="text-align: center;">{{TOTAL_QTY}}</td>
-        <td style="text-align: center;">{{TOTAL_WEIGHT}}</td>
-        <td style="text-align: right;">${{TOTAL_LABOR}}</td>
+        <td class="align-center">{{TOTAL_QTY}}</td>
+        <td class="align-center">{{TOTAL_WEIGHT}}</td>
+        <td class="align-right">${{TOTAL_LABOR}}</td>
         <td></td>
       </tr>
     </tbody>

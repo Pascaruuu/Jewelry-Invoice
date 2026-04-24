@@ -2,7 +2,7 @@
 // STORAGE UTILITIES
 // ======================================================================
 
-const Storage = {
+const AppStorage = {
   // ======================================================================
   // LOAD FUNCTIONS
   // ======================================================================
@@ -128,4 +128,4 @@ const Storage = {
 };
 
 // Make available globally
-window.Storage = Storage;
+window.AppStorage = AppStorage;

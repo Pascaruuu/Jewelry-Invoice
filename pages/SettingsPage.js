@@ -3,6 +3,7 @@
 // ======================================================================
 
 function SettingsPage({
+  currentSettingsSection,
   savePath,
   handleSelectSavePath,
   clientGroups,
@@ -25,351 +26,431 @@ function SettingsPage({
   goldMixOptions,
   addGoldMix,
   removeGoldMix,
-  showInput
+  showInput,
+  restartPrintSpooler
 }) {
   // Get icons from window
   const { Plus, X } = window.Icons || {};
 
+  const sectionMeta = {
+    'settings-paths': {
+      title: 'រក្សាទុកទី / Save Path & QR Code',
+      subtitle: 'Manage the invoice save destination and uploaded QR code.'
+    },
+    'settings-clients': {
+      title: 'ផ្សារ / Markets & Locations',
+      subtitle: 'Organize grouped clients by market or location.'
+    },
+    'settings-products': {
+      title: 'ប្រភេទគ្រឿង / Type of Goods',
+      subtitle: 'Manage grouped product names for quick selection.'
+    },
+    'settings-units': {
+      title: 'ឯកតាចំនួន / Units & Gold Values',
+      subtitle: 'Control quantity units and available gold mix values.'
+    },
+    'settings-printer': {
+      title: 'Printer Settings',
+      subtitle: 'Use maintenance actions when Windows printing gets stuck.'
+    }
+  };
+
+  const activeSection = sectionMeta[currentSettingsSection] || sectionMeta['settings-paths'];
+
   return (
-    <div className="flex-1 ml-64 p-8">
-      <h2 className="text-2xl font-bold mb-6">ការកំណត់ / Settings</h2>
-
-      {/* Save Path */}
-      <div className="bg-white rounded-lg shadow-md border border-tertiary p-6 mb-6">
-        <h3 className="text-lg font-semibold text-primary mb-4">រក្សាទុកទី / Save Path</h3>
-        <div className="flex gap-2 items-center">
-          <button
-            onClick={handleSelectSavePath}
-            className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition-colors"
-          >
-            Browse...
-          </button>
-          <span className="text-sm text-gray-600">{savePath || 'Not set'}</span>
-        </div>
-      </div>
-
-      {/* GROUPED Client Management */}
-      <div className="bg-white rounded-lg shadow-md border border-tertiary p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">ផ្សារ / Markets & Locations (Grouped Clients)</h3>
-          <button
-            onClick={async () => {
-              const groupName = await showInput('Enter market/location name:');
-              if (groupName) {
-                addClientGroup(groupName);
-              }
-            }}
-            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
-          >
-            {Plus && <Plus size={14} />}
-            Add Market
-          </button>
-        </div>
-
-        {clientGroups.length === 0 ? (
-          <p className="text-sm text-gray-500">No markets yet. Click "Add Market" to create one.</p>
-        ) : (
-          <div className="space-y-4">
-            {clientGroups.map((group, groupIdx) => (
-              <div key={groupIdx} className="border border-tertiary rounded-lg p-4 bg-white">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-semibold text-md text-primary">{group.name}</h4>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={async () => {
-                        const newName = await showInput('Rename market:', group.name);
-                        if (newName) {
-                          renameClientGroup(groupIdx, newName);
-                        }
-                      }}
-                      className="text-xs px-2 py-1 bg-accent text-primary rounded hover:bg-tertiary transition-colors"
-                    >
-                      Rename
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete market "${group.name}"?`)) {
-                          removeClientGroup(groupIdx);
-                        }
-                      }}
-                      className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                    >
-                      Delete Market
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="text"
-                    id={`newClient-${groupIdx}`}
-                    placeholder="Add new client..."
-                    className="flex-1 px-3 py-2 border rounded text-sm"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && e.target.value.trim()) {
-                        addClientToGroup(groupIdx, e.target.value.trim());
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      const input = document.getElementById(`newClient-${groupIdx}`);
-                      if (input.value.trim()) {
-                        addClientToGroup(groupIdx, input.value.trim());
-                        input.value = '';
-                      }
-                    }}
-                    className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {group.items.length === 0 ? (
-                    <p className="text-xs text-gray-500">No clients in this market yet</p>
-                  ) : (
-                    group.items.map((client, clientIdx) => (
-                      <span
-                        key={clientIdx}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-white border rounded text-sm"
-                      >
-                        {client}
-                        <button
-                          onClick={() => removeClientFromGroup(groupIdx, clientIdx)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          {X && <X size={12} />}
-                        </button>
-                      </span>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
+    <div className="page">
+      <div className="page-narrow settings-page">
+        <div className="page-heading-row">
+          <div>
+            <h2 className="page-title">ការកំណត់ / Settings</h2>
+            <p className="page-subtitle">{activeSection.subtitle}</p>
           </div>
-        )}
-      </div>
-
-      {/* QR Code */}
-      <div className="bg-white rounded-lg shadow-md border border-tertiary p-6 mb-6">
-        <h3 className="text-lg font-semibold text-primary mb-4">QR Code</h3>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleQRUpload}
-          className="mb-2"
-        />
-        {qrCodeImage && (
-          <img src={qrCodeImage} alt="QR Preview" className="w-32 h-auto mt-2" />
-        )}
-      </div>
-
-      {/* GROUPED Type of Goods */}
-      <div className="bg-white rounded-lg shadow-md border border-tertiary p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">ប្រភេទគ្រឿង / Type of Goods (Grouped)</h3>
-          <button
-            onClick={async () => {
-              const groupName = await showInput('Enter group name:');
-              if (groupName) {
-                addGroup(groupName);
-              }
-            }}
-            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
-          >
-            {Plus && <Plus size={14} />}
-            Add Group
-          </button>
         </div>
 
-        {itemTypeGroups.length === 0 ? (
-          <p className="text-sm text-gray-500">No groups yet. Click "Add Group" to create one.</p>
-        ) : (
-          <div className="space-y-4">
-            {itemTypeGroups.map((group, groupIdx) => (
-              <div key={groupIdx} className="border border-tertiary rounded-lg p-4 bg-white">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-semibold text-md text-primary">{group.name}</h4>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={async () => {
-                        const newName = await showInput('Rename group:', group.name);
-                        if (newName) {
-                          renameGroup(groupIdx, newName);
-                        }
-                      }}
-                      className="text-xs px-2 py-1 bg-accent text-primary rounded hover:bg-tertiary transition-colors"
-                    >
-                      Rename
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete group "${group.name}"?`)) {
-                          removeGroup(groupIdx);
-                        }
-                      }}
-                      className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                    >
-                      Delete Group
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="text"
-                    id={`newItem-${groupIdx}`}
-                    placeholder="Add new item..."
-                    className="flex-1 px-3 py-2 border rounded text-sm"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && e.target.value.trim()) {
-                        addItemToGroup(groupIdx, e.target.value.trim());
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      const input = document.getElementById(`newItem-${groupIdx}`);
-                      if (input.value.trim()) {
-                        addItemToGroup(groupIdx, input.value.trim());
-                        input.value = '';
-                      }
-                    }}
-                    className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {group.items.length === 0 ? (
-                    <p className="text-xs text-gray-500">No items in this group yet</p>
-                  ) : (
-                    group.items.map((item, itemIdx) => (
-                      <span
-                        key={itemIdx}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-white border rounded text-sm"
-                      >
-                        {item}
-                        <button
-                          onClick={() => removeItemFromGroup(groupIdx, itemIdx)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          {X && <X size={12} />}
-                        </button>
-                      </span>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
+        {currentSettingsSection === 'settings-paths' && (
+        <section id="settings-paths" className="editor-section settings-section">
+          <div className="section-heading-row">
+            <h3 className="section-title">{sectionMeta['settings-paths'].title}</h3>
           </div>
-        )}
-      </div>
-
-      {/* Quantity Units */}
-      <div className="bg-white rounded-lg shadow-md border border-tertiary p-6 mb-6">
-        <h3 className="text-lg font-semibold text-primary mb-4">ឯកតាចំនួន / Quantity Units</h3>
-        <div className="flex gap-2 mb-3">
-          <input
-            type="text"
-            id="newQtyUnit"
-            placeholder="Add new unit..."
-            className="flex-1 px-3 py-2 border rounded"
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && e.target.value.trim()) {
-                addQtyUnit(e.target.value.trim());
-                e.target.value = '';
-              }
-            }}
-          />
-          <button
-            onClick={() => {
-              const input = document.getElementById('newQtyUnit');
-              if (input.value.trim()) {
-                addQtyUnit(input.value.trim());
-                input.value = '';
-              }
-            }}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Add
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {qtyUnitOptions.filter(u => u).map((unit, idx) => (
-            <span
-              key={idx}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded"
-            >
-              {unit}
+          <div className="panel settings-panel">
+            <div className="settings-card-heading">Save Path</div>
+            <div className="settings-inline-row">
               <button
-                onClick={() => removeQtyUnit(unit)}
-                className="text-red-600 hover:text-red-800"
+                onClick={handleSelectSavePath}
+                className="btn btn-primary"
               >
-                {X && <X size={14} />}
+                Browse...
               </button>
-            </span>
-          ))}
-        </div>
-      </div>
+              <span className="settings-path-value">{savePath || 'Not set'}</span>
+            </div>
+          </div>
+          <div className="panel settings-panel">
+            <div className="settings-card-heading">QR Code</div>
+            <div className="settings-inline-row">
+              <button
+                onClick={() => document.getElementById('qrFileInput').click()}
+                className="btn btn-secondary"
+              >
+                Upload Image
+              </button>
+              <span className="settings-file-status">{qrCodeImage ? 'Image loaded' : 'No image set'}</span>
+            </div>
+            <input
+              type="file"
+              id="qrFileInput"
+              accept="image/*"
+              onChange={handleQRUpload}
+              style={{display: 'none'}}
+            />
+            {qrCodeImage && (
+              <img src={qrCodeImage} alt="QR Preview" className="qr-preview" />
+            )}
+          </div>
+        </section>
+        )}
 
-      {/* Gold Mix */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-primary mb-4">ផ្លាទីនទឹក / Gold Mix Options</h3>
-        <div className="flex gap-2 mb-3">
-          <input
-            type="text"
-            id="newGoldLabel"
-            placeholder="Label (e.g., 80%)"
-            className="flex-1 px-3 py-2 border rounded"
-          />
-          <input
-            type="text"
-            id="newGoldValue"
-            placeholder="Value (e.g., 80)"
-            className="flex-1 px-3 py-2 border rounded"
-          />
-          <button
-            onClick={() => {
-              const labelInput = document.getElementById('newGoldLabel');
-              const valueInput = document.getElementById('newGoldValue');
-              if (labelInput.value.trim() && valueInput.value.trim()) {
-                const newMix = { label: labelInput.value.trim(), value: valueInput.value.trim() };
-                const isDuplicate = goldMixOptions.some(mix => mix.value === newMix.value);
-                addGoldMix(newMix);
-                if (!isDuplicate) {
-                  labelInput.value = '';
-                  valueInput.value = '';
+        {currentSettingsSection === 'settings-clients' && (
+        <section id="settings-clients" className="editor-section settings-section">
+          <div className="section-heading-row">
+            <h3 className="section-title">{sectionMeta['settings-clients'].title}</h3>
+            <button
+              onClick={async () => {
+                const groupName = await showInput('Enter market/location name:');
+                if (groupName) {
+                  addClientGroup(groupName);
                 }
-              } else {
-                alert('Please fill in both label and value');
-              }
-            }}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Add
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {goldMixOptions.map((mix, idx) => (
-            <span
-              key={idx}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded"
+              }}
+              className="btn btn-success btn-small"
             >
-              {mix.label} <span className="text-xs text-gray-500">({mix.value})</span>
-              <button
-                onClick={() => removeGoldMix(mix.value)}
-                className="text-red-600 hover:text-red-800"
+              {Plus && <Plus size={14} />}
+              Add Market
+            </button>
+          </div>
+
+          {clientGroups.length === 0 ? (
+            <div className="muted-panel">No markets yet</div>
+          ) : (
+            <div className="settings-group-list">
+              {clientGroups.map((group, groupIdx) => (
+                <div key={groupIdx} className="panel settings-group-card">
+                  <div className="settings-group-header">
+                    <div>
+                      <h4 className="subsection-title">{group.name}</h4>
+                      <p className="help-text">{group.items.length} clients</p>
+                    </div>
+                    <div className="row-wrap">
+                      <button
+                        onClick={async () => {
+                          const newName = await showInput('Rename market:', group.name);
+                          if (newName) {
+                            renameClientGroup(groupIdx, newName);
+                          }
+                        }}
+                        className="btn btn-secondary btn-xs"
+                      >
+                        Rename
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete market "${group.name}"?`)) {
+                            removeClientGroup(groupIdx);
+                          }
+                        }}
+                        className="btn btn-link-danger btn-xs"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="settings-add-row">
+                    <input
+                      type="text"
+                      id={`newClient-${groupIdx}`}
+                      placeholder="Add new client..."
+                      className="form-control flex-fill"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                          addClientToGroup(groupIdx, e.target.value.trim());
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const input = /** @type {HTMLInputElement} */ (document.getElementById(`newClient-${groupIdx}`));
+                        if (input.value.trim()) {
+                          addClientToGroup(groupIdx, input.value.trim());
+                          input.value = '';
+                        }
+                      }}
+                      className="btn btn-success btn-small"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  <div className="row-wrap">
+                    {group.items.length === 0 ? (
+                      <p className="empty-text empty-text-xs">No clients in this market yet</p>
+                    ) : (
+                      group.items.map((client, clientIdx) => (
+                        <span
+                          key={clientIdx}
+                          className="pill settings-pill"
+                        >
+                          {client}
+                          <button
+                            onClick={() => removeClientFromGroup(groupIdx, clientIdx)}
+                            className="btn-link-danger"
+                          >
+                            {X && <X size={12} />}
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+        )}
+
+        {currentSettingsSection === 'settings-products' && (
+        <section id="settings-products" className="editor-section settings-section">
+          <div className="section-heading-row">
+            <h3 className="section-title">{sectionMeta['settings-products'].title}</h3>
+            <button
+              onClick={async () => {
+                const groupName = await showInput('Enter group name:');
+                if (groupName) {
+                  addGroup(groupName);
+                }
+              }}
+              className="btn btn-success btn-small"
+            >
+              {Plus && <Plus size={14} />}
+              Add Group
+            </button>
+          </div>
+
+          {itemTypeGroups.length === 0 ? (
+            <div className="muted-panel">No groups yet</div>
+          ) : (
+            <div className="settings-group-list">
+              {itemTypeGroups.map((group, groupIdx) => (
+                <div key={groupIdx} className="panel settings-group-card">
+                  <div className="settings-group-header">
+                    <div>
+                      <h4 className="subsection-title">{group.name}</h4>
+                      <p className="help-text">{group.items.length} items</p>
+                    </div>
+                    <div className="row-wrap">
+                      <button
+                        onClick={async () => {
+                          const newName = await showInput('Rename group:', group.name);
+                          if (newName) {
+                            renameGroup(groupIdx, newName);
+                          }
+                        }}
+                        className="btn btn-secondary btn-xs"
+                      >
+                        Rename
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete group "${group.name}"?`)) {
+                            removeGroup(groupIdx);
+                          }
+                        }}
+                        className="btn btn-link-danger btn-xs"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="settings-add-row">
+                    <input
+                      type="text"
+                      id={`newItem-${groupIdx}`}
+                      placeholder="Add new item..."
+                      className="form-control flex-fill"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                          addItemToGroup(groupIdx, e.target.value.trim());
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const input = /** @type {HTMLInputElement} */ (document.getElementById(`newItem-${groupIdx}`));
+                        if (input.value.trim()) {
+                          addItemToGroup(groupIdx, input.value.trim());
+                          input.value = '';
+                        }
+                      }}
+                      className="btn btn-success btn-small"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  <div className="row-wrap">
+                    {group.items.length === 0 ? (
+                      <p className="empty-text empty-text-xs">No items in this group yet</p>
+                    ) : (
+                      group.items.map((item, itemIdx) => (
+                        <span
+                          key={itemIdx}
+                          className="pill settings-pill"
+                        >
+                          {item}
+                          <button
+                            onClick={() => removeItemFromGroup(groupIdx, itemIdx)}
+                            className="btn-link-danger"
+                          >
+                            {X && <X size={12} />}
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+        )}
+
+        {currentSettingsSection === 'settings-units' && (
+        <>
+        <section id="settings-units" className="editor-section settings-section">
+          <div className="section-heading-row">
+            <h3 className="section-title">ឯកតាចំនួន / Quantity Units</h3>
+          </div>
+          <div className="settings-add-row">
+            <input
+              type="text"
+              id="newQtyUnit"
+              placeholder="Add new unit..."
+              className="form-control flex-fill"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                  addQtyUnit(e.target.value.trim());
+                  e.target.value = '';
+                }
+              }}
+            />
+            <button
+              onClick={() => {
+                const input = /** @type {HTMLInputElement} */ (document.getElementById('newQtyUnit'));
+                if (input.value.trim()) {
+                  addQtyUnit(input.value.trim());
+                  input.value = '';
+                }
+              }}
+              className="btn btn-success"
+            >
+              Add
+            </button>
+          </div>
+          <div className="row-wrap">
+            {qtyUnitOptions.filter(u => u).map((unit, idx) => (
+              <span
+                key={idx}
+                className="pill settings-pill"
               >
-                {X && <X size={14} />}
-              </button>
-            </span>
-          ))}
-        </div>
+                {unit}
+                <button
+                  onClick={() => removeQtyUnit(unit)}
+                  className="btn-link-danger"
+                >
+                  {X && <X size={14} />}
+                </button>
+              </span>
+            ))}
+          </div>
+        </section>
+
+        <section className="editor-section settings-section">
+          <div className="section-heading-row">
+            <h3 className="section-title">ផ្លាទីនទឹក / Gold Mix Options</h3>
+          </div>
+          <div className="settings-gold-row">
+            <input
+              type="text"
+              id="newGoldLabel"
+              placeholder="Label (e.g., 80%)"
+              className="form-control flex-fill"
+            />
+            <input
+              type="text"
+              id="newGoldValue"
+              placeholder="Value (e.g., 80)"
+              className="form-control flex-fill"
+            />
+            <button
+              onClick={() => {
+                const labelInput = /** @type {HTMLInputElement} */ (document.getElementById('newGoldLabel'));
+                const valueInput = /** @type {HTMLInputElement} */ (document.getElementById('newGoldValue'));
+                if (labelInput.value.trim() && valueInput.value.trim()) {
+                  const newMix = { label: labelInput.value.trim(), value: valueInput.value.trim() };
+                  const isDuplicate = goldMixOptions.some(mix => mix.value === newMix.value);
+                  addGoldMix(newMix);
+                  if (!isDuplicate) {
+                    labelInput.value = '';
+                    valueInput.value = '';
+                  }
+                } else {
+                  alert('Please fill in both label and value');
+                }
+              }}
+              className="btn btn-success"
+            >
+              Add
+            </button>
+          </div>
+          <div className="row-wrap">
+            {goldMixOptions.map((mix, idx) => (
+              <span
+                key={idx}
+                className="pill settings-pill"
+              >
+                {mix.label} <span className="help-text">({mix.value})</span>
+                <button
+                  onClick={() => removeGoldMix(mix.value)}
+                  className="btn-link-danger"
+                >
+                  {X && <X size={14} />}
+                </button>
+              </span>
+            ))}
+          </div>
+        </section>
+        </>
+        )}
+
+        {currentSettingsSection === 'settings-printer' && (
+        <section id="settings-printer" className="editor-section settings-section">
+          <div className="section-heading-row">
+            <h3 className="section-title">{sectionMeta['settings-printer'].title}</h3>
+          </div>
+          <p className="help-text">
+            Use this when Windows printing gets stuck and the printer queue needs a restart.
+          </p>
+          <div>
+            <button
+              onClick={restartPrintSpooler}
+              className="btn btn-secondary"
+            >
+              Restart Printer Spooler
+            </button>
+          </div>
+        </section>
+        )}
       </div>
     </div>
   );

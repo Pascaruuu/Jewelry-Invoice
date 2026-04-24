@@ -9,104 +9,21 @@
   <script crossorigin src="./libs/react.production.min.js"></script>
   <script crossorigin src="./libs/react-dom.production.min.js"></script>
   <script src="./libs/babel.min.js"></script>
-  
-  <!-- Tailwind CSS - Smart Loading -->
+
   <script>
-    // Detect if running in Electron
-    const isElectron = typeof process !== 'undefined' && process.versions?.electron;
-    
-    if (isElectron) {
-      // In Electron: Use local CSS immediately (no CDN delay)
-      console.log('⚡ Electron detected - Using local Tailwind CSS');
-      const localCSS = document.createElement('link');
-      localCSS.rel = 'stylesheet';
-      localCSS.href = './libs/tailwind.min.css';
-      document.head.appendChild(localCSS);
-    } else {
-      // In Browser: Try CDN with local fallback
-      console.log('🌐 Browser detected - Trying Tailwind CDN');
-      const tailwindCDN = document.createElement('script');
-      tailwindCDN.src = 'https://cdn.tailwindcss.com';
-      tailwindCDN.onerror = function() {
-        console.log('📡 No internet - Loading local Tailwind CSS');
-        const localCSS = document.createElement('link');
-        localCSS.rel = 'stylesheet';
-        localCSS.href = './libs/tailwind.min.css';
-        document.head.appendChild(localCSS);
-      };
-      tailwindCDN.onload = function() {
-        console.log('✅ Tailwind CDN loaded successfully');
-      };
-      document.head.appendChild(tailwindCDN);
-    }
+    (function () {
+      const storedTheme = localStorage.getItem('jewelryTheme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = storedTheme || (prefersDark ? 'dark' : 'light');
+      document.documentElement.dataset.theme = theme;
+    })();
   </script>
-  
-  <!-- Custom Theme Colors -->
-  <style>
-    :root {
-      --primary: #0B2E33;
-      --secondary: #4F7C82;
-      --tertiary: #93B1B5;
-      --accent: #B8E3E9;
-    }
-    
-    .bg-primary { background-color: var(--primary); }
-    .bg-secondary { background-color: var(--secondary); }
-    .bg-tertiary { background-color: var(--tertiary); }
-    .bg-accent { background-color: var(--accent); }
-    
-    .text-primary { color: var(--primary); }
-    .text-secondary { color: var(--secondary); }
-    .text-tertiary { color: var(--tertiary); }
-    .text-accent { color: var(--accent); }
-    
-    .border-primary { border-color: var(--primary); }
-    .border-secondary { border-color: var(--secondary); }
-    .border-tertiary { border-color: var(--tertiary); }
-    .border-accent { border-color: var(--accent); }
-    
-    .hover\\:bg-primary:hover { background-color: var(--primary); }
-    .hover\\:bg-secondary:hover { background-color: var(--secondary); }
-    .hover\\:bg-accent:hover { background-color: var(--accent); }
-    
-    /* Refresh Button Styles */
-    #refresh-btn {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      z-index: 10000;
-      background-color: rgba(75, 124, 130, 0.9);
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      font-size: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      transition: all 0.2s;
-    }
-    
-    #refresh-btn:hover {
-      background-color: rgba(11, 46, 51, 0.95);
-      transform: rotate(180deg);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-    
-    #refresh-btn:active {
-      transform: rotate(180deg) scale(0.95);
-    }
-  </style>
+
+  <!-- Project Theme -->
+  <link rel="stylesheet" href="./libs/theme.css">
+  <link rel="stylesheet" href="./libs/shared.css">
 </head>
 <body>
-  <!-- Refresh Button -->
-  <button id="refresh-btn" title="Refresh (Ctrl+R)" onclick="location.reload()">
-    ↻
-  </button>
-
   <div id="root"></div>
   
   <!-- Load all component files -->

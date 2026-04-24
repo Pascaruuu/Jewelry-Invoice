@@ -23,25 +23,34 @@ function getDefaultInvoiceTemplate() {
   <meta charset="UTF-8">
   <title>Invoice - {{CLIENT_NAME}}</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
-    .header { text-align: center; margin-bottom: 30px; }
-    .header h1 { font-size: 30px; margin: 10px 0; }
-    .header p { font-size: 22px; margin: 10px 0; }
-    .header h2 { font-size: 24px; margin: 20px 0 10px 0; }
-    .contact-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
-    .contact-info p { font-size: 19px; margin: 5px 0; }
-    .info { margin: 20px 0; }
-    .info p { margin: 8px 0; font-size: 16px; }
+    :root {
+      --invoice-border: #d8d8d8;
+      --invoice-muted: #f3f3f3;
+      --invoice-text: #1a1a18;
+      --invoice-secondary-text: #545450;
+    }
+    body { font-family: Arial, sans-serif; padding: 24px; margin: 0; color: var(--invoice-text); background: #ffffff; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 26px; margin: 6px 0; }
+    .header p { color: var(--invoice-secondary-text); font-size: 16px; line-height: 1.45; margin: 8px 0; }
+    .header h2 { font-size: 22px; letter-spacing: 0.04em; margin: 18px 0 8px 0; }
+    .contact-info { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+    .contact-info p { font-size: 15px; line-height: 1.5; margin: 5px 0; }
+    .info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 18px 0; padding: 14px; border: 1px solid var(--invoice-border); }
+    .info p { margin: 0; font-size: 14px; }
     .info strong { font-weight: 600; }
-    .client-name { font-size: 22px; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; font-weight: bold; }
-    .totals { font-weight: bold; background-color: #f9f9f9; }
-    .grand-total { text-align: right; font-size: 24px; font-weight: bold; margin: 20px 0; }
-    .disclaimer { font-size: 18px; margin-top: 20px; color: #333; }
+    .client-name { font-size: 17px; }
+    table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+    th, td { border: 1px solid var(--invoice-border); padding: 9px 10px; text-align: left; font-size: 14px; }
+    th { background-color: var(--invoice-muted); font-weight: bold; }
+    .totals { font-weight: bold; background-color: var(--invoice-muted); }
+    .grand-total { text-align: right; font-size: 22px; font-weight: bold; margin: 18px 0; }
+    .disclaimer { font-size: 15px; margin-top: 20px; color: var(--invoice-secondary-text); }
     .qr-code { text-align: center; margin-top: 30px; }
     .qr-code img { width: auto; height: 220px; }
+    .align-center { text-align: center; }
+    .align-right { text-align: right; }
+    @media print { body { padding: 0; } }
   </style>
 </head>
 <body>
@@ -56,7 +65,7 @@ function getDefaultInvoiceTemplate() {
       <p><strong>TEL:</strong> 012205358<br/>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;061848616</p>
     </div>
-    <div style="text-align: right;">
+    <div class="align-right">
       <p>ផ្ទះលេខ10C1E0 ផ្លូវលេខ211<br/>សង្កាត់វាលវង់ ខណ្ឌ៧មករា</p>
     </div>
   </div>
@@ -65,26 +74,26 @@ function getDefaultInvoiceTemplate() {
     <p><strong>ឈ្មោះអតិថិជន / Client Name: <span class="client-name">{{CLIENT_NAME}}</span></strong></p>
     <p><strong>ថ្ងៃទី / Date:</strong> {{DATE}}</p>
     <p><strong>ផ្លាទីនទឹក / Gold Mix:</strong> {{GOLD_MIX}}</p>
-    <p><strong>ហាងឆេង / Gold Market Price:</strong> ${{GOLD_PRICE}}</p>
+    <p><strong>ហាងឆេង / Gold Market Price:</strong> \${{GOLD_PRICE}}</p>
   </div>
   
   <table>
     <thead>
       <tr>
         <th>ប្រភេទគ្រឿង<br/>Type of Goods</th>
-        <th style="text-align: center;">ចំនួន<br/>Qty</th>
-        <th style="text-align: center;">ទំងន់<br/>Weight (l)</th>
-        <th style="text-align: right;">ឈ្នួល<br/>Labor</th>
-        <th style="text-align: right;">សរុប<br/>Total</th>
+        <th class="align-center">ចំនួន<br/>Qty</th>
+        <th class="align-center">ទំងន់<br/>Weight (l)</th>
+        <th class="align-right">ឈ្នួល<br/>Labor</th>
+        <th class="align-right">សរុប<br/>Total</th>
       </tr>
     </thead>
     <tbody>
       {{ITEMS_ROWS}}
       <tr class="totals">
         <td>សរុប / TOTAL</td>
-        <td style="text-align: center;">{{TOTAL_QTY}}</td>
-        <td style="text-align: center;">{{TOTAL_WEIGHT}}</td>
-        <td style="text-align: right;">\${{TOTAL_LABOR}}</td>
+        <td class="align-center">{{TOTAL_QTY}}</td>
+        <td class="align-center">{{TOTAL_WEIGHT}}</td>
+        <td class="align-right">\${{TOTAL_LABOR}}</td>
         <td></td>
       </tr>
     </tbody>
@@ -105,9 +114,10 @@ function getDefaultInvoiceTemplate() {
 
 async function generateInvoiceHTML(formData, goldMixOptions, qrCodeImage, calculateItemTotal, formatDate, roundTotal, globalGoldPrice) {
   const template = await loadInvoiceTemplate();
+  const totalQty = formData.items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
   
   const totals = {
-    totalQty: formData.items.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0),
+    totalQty: Math.round(totalQty * 100) / 100,
     totalWeight: formData.items.reduce((sum, item) => {
       return sum + item.subItems.reduce((s, sub) => s + (parseFloat(sub.weight) || 0), 0);
     }, 0),
@@ -125,10 +135,10 @@ async function generateInvoiceHTML(formData, goldMixOptions, qrCodeImage, calcul
     return `
     <tr>
       <td>${item.itemName}${item.productCode ? ` N${item.productCode}` : ''}</td>
-      <td style="text-align: center;">${item.quantity}${item.qtyUnit || ''}</td>
-      <td style="text-align: center;">${totalWeight.toFixed(1)}</td>
-      <td style="text-align: right;">$${totalLabor}</td>
-      <td style="text-align: right;">$${(() => {
+      <td class="align-center">${item.quantity}${item.qtyUnit || ''}</td>
+      <td class="align-center">${totalWeight.toFixed(1)}</td>
+      <td class="align-right">$${totalLabor}</td>
+      <td class="align-right">$${(() => {
         const v = calculateItemTotal(item);
         const d = v - Math.floor(v);
         return (d >= 0.7 ? Math.ceil(v) : Math.floor(v)).toLocaleString();})()}</td>
@@ -150,9 +160,9 @@ async function generateInvoiceHTML(formData, goldMixOptions, qrCodeImage, calcul
     .replace(/{{GOLD_MIX}}/g, goldMixOptions.find(o => o.value === formData.goldMix)?.label || '')
     .replace(/{{GOLD_PRICE}}/g, displayGoldPrice)
     .replace(/{{ITEMS_ROWS}}/g, itemsRows)
-    .replace(/{{TOTAL_QTY}}/g, totals.totalQty)
+    .replace(/{{TOTAL_QTY}}/g, String(totals.totalQty))
     .replace(/{{TOTAL_WEIGHT}}/g, totals.totalWeight.toFixed(1))
-    .replace(/{{TOTAL_LABOR}}/g, totals.totalLabor)
+    .replace(/{{TOTAL_LABOR}}/g, String(totals.totalLabor))
     .replace(/{{GRAND_TOTAL}}/g, grandTotal.toLocaleString())
     .replace(/{{QR_CODE_SECTION}}/g, qrCodeSection);
 

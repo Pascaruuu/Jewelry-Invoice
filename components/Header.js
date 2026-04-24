@@ -3,29 +3,30 @@
 // ======================================================================
 
 function Header({ formData, setFormData, saveDraft, handleSaveReceipt, globalGoldPrice, setGlobalGoldPrice }) {
+  const { Save, FolderOpen } = window.Icons || {};
+
   return (
-    <div className="fixed top-0 left-0 right-0 bg-primary shadow-md border-b border-tertiary border-secondary z-40">
-      <div className="flex items-center justify-between px-6 py-4 pr-16">
+    <div className="header-bar">
+      <div className="header-inner">
         {/* Left: Title and Date */}
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-white">
-            វិក័យប័ត្រ / Invoice
-          </h1>
-          <input
-            type="date"
-            value={formData.date}
-            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-            className="px-3 py-2 border border-tertiary bg-white rounded focus:ring-2 focus:ring-accent"
-          />
+        <div className="header-group">
+          <div className="date-control">
+            <input
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className="form-control"
+            />
+          </div>
         </div>
 
         {/* Center: Gold Price */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-white whitespace-nowrap">
+        <div className="header-group">
+          <label className="header-label">
             Today's Gold Price:
           </label>
-          <div className="relative">
-            <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+          <div className="input-with-prefix">
+            <span className="input-prefix">$</span>
             <input
               type="number"
               step="1"
@@ -36,25 +37,25 @@ function Header({ formData, setFormData, saveDraft, handleSaveReceipt, globalGol
                 localStorage.setItem('jewelryGlobalGoldPrice', newPrice);
               }}
               placeholder="Set price"
-              className="w-32 pl-7 pr-3 py-2 border border-tertiary bg-white rounded focus:ring-2 focus:ring-accent"
+              className="form-control has-prefix"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="header-group">
           <button
             onClick={saveDraft}
-            className="px-4 py-2 bg-secondary text-white rounded hover:bg-primary flex items-center gap-2 transition-colors"
+            className="btn btn-secondary"
           >
-            <Save size={18} />
+            {Save && <Save size={18} />}
             រក្សាទុក / Save Draft
           </button>
           <button
             onClick={handleSaveReceipt}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-2"
+            className="btn btn-success"
           >
-            <FolderOpen size={18} />
-            រក្សាទុក PDF / Save as PDF
+            {FolderOpen && <FolderOpen size={18} />}
+            រក្សាទុកវិក្កយបត្រ / Save Invoice
           </button>
         </div>
       </div>

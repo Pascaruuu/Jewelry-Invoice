@@ -14,31 +14,31 @@ function GroupedClientSelector({ groups, onSelect, onClose }) {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      className="modal-overlay"
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto"
+        className="modal-card"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold">ជ្រើសរើសអតិថិជន / Select Client</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+        <div className="modal-header">
+          <h3 className="modal-title">ជ្រើសរើសអតិថិជន / Select Client</h3>
+          <button onClick={onClose} className="modal-close">
             {X && <X size={24} />}
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="stack-lg">
           {rows.map((row, rowIdx) => (
-            <div key={rowIdx} className="grid grid-cols-3 gap-4">
+            <div key={rowIdx} className="grid-3">
               {row.map((group, colIdx) => (
-                <div key={colIdx} className="border border-tertiary rounded-lg p-4 bg-white">
-                  <h4 className="font-semibold text-lg mb-3 text-primary border-b border-tertiary pb-2">
+                <div key={colIdx} className="panel">
+                  <h4 className="selector-group-title">
                     {group.name}
                   </h4>
-                  <div className="space-y-1">
+                  <div className="stack">
                     {group.items.length === 0 ? (
-                      <p className="text-xs text-gray-400 italic">No clients yet</p>
+                      <p className="empty-text empty-text-xs">No clients yet</p>
                     ) : (
                       group.items.map((client, clientIdx) => (
                         <button
@@ -47,7 +47,7 @@ function GroupedClientSelector({ groups, onSelect, onClose }) {
                             onSelect(client);
                             onClose();
                           }}
-                          className="w-full text-left px-3 py-2 rounded hover:bg-accent text-primary transition-colors text-sm"
+                          className="selector-option"
                         >
                           {client}
                         </button>

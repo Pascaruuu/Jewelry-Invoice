@@ -26,28 +26,27 @@ function InvoicePage({
   calculateGrandTotal,
   calculateTotals,
   roundTotal,
-  handleReset,
-  handlePrint,
+  handleResetInvoice,
   addNewDraft,
   drafts,
   globalGoldPrice
 }) {
   // Get components from window
   const { GroupedTypeSelector, GroupedClientSelector } = window;
-  const { Plus, X, Printer } = window.Icons || {};
+  const { Plus, X } = window.Icons || {};
 
   const totals = calculateTotals();
 
   return (
-    <div className="flex-1 ml-64 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="page">
+      <div className="page-narrow">
+        <div className="card invoice-editor">
 
           {drafts.length === 0 && (
-            <div className="mb-4">
+            <div className="invoice-empty-action">
               <button
                 onClick={addNewDraft}
-                className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                className="btn btn-success btn-small"
               >
                 {Plus && <Plus size={14} />}
                 បន្ថែមថ្មី / New Draft
@@ -55,31 +54,35 @@ function InvoicePage({
             </div>
           )}
 
-          <div className="space-y-4">
-            {/* Client Name */}
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">
-                ឈ្មោះអតិថិជន / Client Name
-              </label>
-              <button
-                onClick={() => setShowClientSelector(true)}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-left hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {formData.clientName || 'ជ្រើសរើសអតិថិជន... / Select client...'}
-              </button>
-              <p className="text-xs text-gray-500 mt-1">Add new clients in Settings</p>
+          <div className="invoice-editor-stack">
+            <div className="invoice-editor-header">
+              <div className="field invoice-client-field">
+                <label className="label">
+                  ឈ្មោះអតិថិជន / Client Name
+                </label>
+                <button
+                  onClick={() => setShowClientSelector(true)}
+                  className="select-button"
+                >
+                  {formData.clientName || 'ជ្រើសរើសអតិថិជន... / Select client...'}
+                </button>
+                <p className="help-text">Add new clients in Settings</p>
+              </div>
             </div>
 
-            {/* Gold Mix and Price */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">
+            <section className="editor-section gold-value-section">
+              <div className="section-heading-row">
+                <h2 className="section-title">តម្លៃមាស / Gold Value</h2>
+              </div>
+              <div className="grid-2">
+              <div className="field">
+                <label className="label">
                   ផ្លាទីនទឹក / Gold Mix
                 </label>
                 <select
                   value={formData.goldMix}
                   onChange={(e) => setFormData({ ...formData, goldMix: e.target.value })}
-                  className="w-full px-3 py-2 border border-tertiary rounded focus:ring-2 focus:ring-secondary focus:border-transparent"
+                  className="form-control"
                 >
                   <option value="">-- ជ្រើសរើស / Select --</option>
                   {goldMixOptions.map((option) => (
@@ -90,98 +93,114 @@ function InvoicePage({
                 </select>
               </div>
 
-            <div>
-                <label className="block text-sm font-medium text-primary mb-1">
+              <div className="field">
+                <div className="field-label-row">
+                  <label className="label">
                     ហាងឆេង / Gold Market Price
-                </label>
-                <div className="flex gap-1 items-center">
-                    <div className="relative flex-1">
-                    <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                    <input
-                        type="number"
-                        step="1"
-                        value={formData.manualGoldPrice !== null ? formData.manualGoldPrice : ''}
-                        onChange={(e) => setFormData({ ...formData, manualGoldPrice: e.target.value === '' ? null : e.target.value })}
-                        placeholder={globalGoldPrice || 'Enter price'}
-                        className={`w-full pl-7 pr-3 py-2 rounded border focus:ring-2 focus:ring-blue-500 ${
-                        formData.manualGoldPrice !== null 
-                            ? 'border-blue-500 bg-blue-50' 
-                            : 'border-gray-300 bg-white'
-                        }`}
-                    />
-                    </div>
-                    {formData.manualGoldPrice !== null && (
-                    <button
-                        onClick={() => setFormData({ ...formData, manualGoldPrice: null })}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                        title="Reset to global price"
-                    >
-                        ↻
-                    </button>
-                    )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
+                  </label>
+                  <span className="inline-help-text">
                     {formData.manualGoldPrice !== null 
-                    ? `Custom price (Global: $${globalGoldPrice})` 
-                    : `Using global price: $${globalGoldPrice || 'Not set'}`
+                      ? `Custom (Global: $${globalGoldPrice})` 
+                      : `Global: $${globalGoldPrice || 'Not set'}`
                     }
-                </p>
+                  </span>
                 </div>
+                <div className="row">
+                  <div className="input-with-prefix flex-fill">
+                    <span className="input-prefix">$</span>
+                    <input
+                      type="number"
+                      step="1"
+                      value={formData.manualGoldPrice !== null ? formData.manualGoldPrice : ''}
+                      onChange={(e) => setFormData({ ...formData, manualGoldPrice: e.target.value === '' ? null : e.target.value })}
+                      placeholder={globalGoldPrice || 'Enter price'}
+                      className={`form-control has-prefix ${
+                        formData.manualGoldPrice !== null 
+                          ? 'is-highlighted' 
+                          : ''
+                      }`}
+                    />
+                  </div>
+                  {formData.manualGoldPrice !== null && (
+                    <button
+                      onClick={() => setFormData({ ...formData, manualGoldPrice: null })}
+                      className="btn btn-ghost btn-icon"
+                      title="Reset to global price"
+                    >
+                      ↻
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
+            </section>
 
-            {/* Items Section */}
-            <div className="border-t pt-4 mt-4">
-              <div className="flex justify-between items-center mb-3">
-                <h2 className="text-lg font-semibold text-gray-800">គ្រឿង / Items</h2>
+            <section className="editor-section items-section">
+              <div className="section-heading-row">
+                <h2 className="section-title">គ្រឿង / Items</h2>
                 <button
                   onClick={addItem}
-                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 flex items-center gap-1"
+                  className="btn btn-success btn-small"
                 >
                   {Plus && <Plus size={16} />}
                   បន្ថែម / Add Item
                 </button>
               </div>
 
+              <div className="items-stack">
               {formData.items.map((item, idx) => (
-                <div key={idx} className="mb-4 p-4 bg-white rounded border border-tertiary">
-                  <div className="flex gap-2 items-start mb-3">
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">ប្រភេទគ្រឿង / Type of Goods</label>
+                <div key={idx} className="item-card">
+                  <div className="item-card-header">
+                    <span className="item-number">Item {idx + 1}</span>
+                    {formData.items.length > 1 && (
+                      <button
+                        onClick={() => removeItem(idx)}
+                        className="btn btn-link-danger btn-icon item-remove"
+                        title="Remove item"
+                        aria-label={`Remove item ${idx + 1}`}
+                      >
+                        {X && <X size={18} />}
+                      </button>
+                    )}
+                  </div>
+                  <div className="item-main-row">
+                    <div className="flex-fill field">
+                      <label className="label-sm">ប្រភេទគ្រឿង / Type of Goods</label>
                       <button
                         onClick={() => {
                           setCurrentItemIndex(idx);
                           setShowTypeSelector(true);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-left hover:bg-gray-100 focus:ring-2 focus:ring-blue-500"
+                        className="select-button"
                       >
                         {item.itemName || '-- ជ្រើសរើស / Select --'}
                       </button>
                     </div>
-                    <div className="w-24">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">លេខកូដ / Code</label>
+                    <div className="field-code field">
+                      <label className="label-sm">លេខកូដ / Code</label>
                       <input
                         type="text"
                         placeholder="№"
                         value={item.productCode}
                         onChange={(e) => updateItem(idx, 'productCode', e.target.value)}
-                        className="w-full px-2 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        className="form-control"
                       />
                     </div>
-                    <div className="w-32">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">ចំនួន / Qty</label>
-                      <div className="flex gap-1">
+                    <div className="field-qty field">
+                      <label className="label-sm">ចំនួន / Qty</label>
+                      <div className="row">
                         <input
                           type="number"
                           min="1"
-                          step="1"
+                          step="0.01"
                           value={item.quantity}
                           onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-                          className="w-16 px-2 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          className="form-control qty-number"
                         />
                         <select
                           value={item.qtyUnit}
                           onChange={(e) => updateItem(idx, 'qtyUnit', e.target.value)}
-                          className="w-14 px-1 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-xs"
+                          className="form-control qty-unit"
                         >
                           {qtyUnitOptions.map((unit, i) => (
                             <option key={i} value={unit}>{unit || '-'}</option>
@@ -189,20 +208,21 @@ function InvoicePage({
                         </select>
                       </div>
                     </div>
-                    <div className="w-40 pt-6">
-                      <div className="flex gap-1 items-center">
+                    <div className="field-total field">
+                      <label className="label-sm">សរុប / Total</label>
+                      <div className="row">
                         <input
                           type="number"
                           step="1"
                           value={item.manualTotal !== null ? item.manualTotal : ''}
                           onChange={(e) => updateItem(idx, 'manualTotal', e.target.value === '' ? null : e.target.value)}
-                          className="w-24 text-sm font-semibold text-gray-700 px-2 py-2 bg-white rounded border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                          className="form-control total-input"
                           placeholder={roundTotal(getCalculatedTotal(item)).toString()}
                         />
                         {item.manualTotal !== null && (
                           <button
                             onClick={() => updateItem(idx, 'manualTotal', null)}
-                            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                            className="btn btn-ghost btn-icon"
                             title="Reset to calculated"
                           >
                             ↻
@@ -210,45 +230,37 @@ function InvoicePage({
                         )}
                       </div>
                     </div>
-                    {formData.items.length > 1 && (
-                      <button
-                        onClick={() => removeItem(idx)}
-                        className="mt-6 p-2 text-red-600 hover:bg-red-50 rounded"
-                      >
-                        {X && <X size={20} />}
-                      </button>
-                    )}
                   </div>
 
                   {/* Sub Items */}
-                  <div className="ml-4 space-y-2">
+                  <div className="subitem-stack">
                     {item.subItems.map((subItem, subIdx) => (
-                      <div key={subIdx} className="flex gap-2 items-center bg-white p-2 rounded border border-tertiary">
-                        <span className="text-xs text-gray-500 w-12">#{subIdx + 1}</span>
-                        <div className="flex-1">
+                      <div key={subIdx} className="subitem-row">
+                        <span className="subitem-index">#{subIdx + 1}</span>
+                        <div className="flex-fill">
                           <input
                             type="number"
                             step="1"
                             placeholder="ទំងន់ / Weight"
                             value={subItem.weight}
                             onChange={(e) => updateSubItem(idx, subIdx, 'weight', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                            className="form-control form-control-sm"
                           />
                         </div>
-                        <div className="flex-1">
-                          <div className="relative">
-                            <span className="absolute left-2 top-1 text-gray-500 text-xs">$</span>
+                        <div className="flex-fill">
+                          <div className="input-with-prefix">
+                            <span className="input-prefix">$</span>
                             <input
                               type="number"
                               step="1"
                               placeholder="ឈ្នួល / Labor"
                               value={subItem.laborCost}
                               onChange={(e) => updateSubItem(idx, subIdx, 'laborCost', e.target.value)}
-                              className="w-full pl-5 pr-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                              className="form-control form-control-sm has-prefix"
                             />
                           </div>
                         </div>
-                        <div className="w-24 text-right text-sm font-semibold text-gray-700">
+                        <div className="subitem-total">
                           ${calculateSubItemTotal(subItem).toFixed(2)}
                         </div>
                       </div>
@@ -256,52 +268,45 @@ function InvoicePage({
                   </div>
                 </div>
               ))}
+              </div>
 
-              {/* Totals */}
-              <div className="mt-2 p-3 bg-accent rounded border border-secondary">
-                <div className="flex gap-4 items-center">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 mb-1">សរុប / TOTAL</div>
-                    <div className="font-semibold text-gray-700">សរុប / TOTAL</div>
+              <div className="totals-bar">
+                <div className="row">
+                  <div className="flex-fill">
+                    <div className="total-label">សរុប / TOTAL</div>
+                    <div className="total-value">សរុប / TOTAL</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xs text-gray-500 mb-1">ចំនួន / Qty</div>
-                    <div className="font-semibold text-gray-700">{totals.totalQty}</div>
+                    <div className="total-label">ចំនួន / Qty</div>
+                    <div className="total-value">{totals.totalQty}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xs text-gray-500 mb-1">ទំងន់ / Weight</div>
-                    <div className="font-semibold text-gray-700">{totals.totalWeight.toFixed(1)}</div>
+                    <div className="total-label">ទំងន់ / Weight</div>
+                    <div className="total-value">{totals.totalWeight.toFixed(1)}</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xs text-gray-500 mb-1">ឈ្នួល / Labor</div>
-                    <div className="font-semibold text-gray-700">${totals.totalLabor}</div>
+                    <div className="total-label">ឈ្នួល / Labor</div>
+                    <div className="total-value">${totals.totalLabor}</div>
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Grand Total */}
-            <div className="border-t pt-4 mt-6">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-gray-700">សរុបរួម / Grand Total:</span>
-                <span className="text-2xl font-bold text-primary">${calculateGrandTotal().toLocaleString()}</span>
+            <section className="grand-total-block">
+              <div>
+                <div className="grand-total-label">សរុបរួម / Grand Total</div>
+                <div className="grand-total-help">Rounded from item totals</div>
               </div>
-            </div>
+              <span className="grand-total">${calculateGrandTotal().toLocaleString()}</span>
+            </section>
 
-            {/* Action Buttons */}
-            <div className="flex justify-between items-center mt-4">
+            <div className="invoice-editor-footer">
+              <span className="help-text">Use Save Invoice in the top bar to create the invoice file.</span>
               <button
-                onClick={handleReset}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                onClick={handleResetInvoice}
+                className="btn btn-link-danger btn-small"
               >
-                កំណត់ឡើងវិញ / Reset
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                {Printer && <Printer size={18} />}
-                បោះពុម្ព / Print
+                សម្អាតវិក្កយបត្រ / Clear invoice
               </button>
             </div>
           </div>

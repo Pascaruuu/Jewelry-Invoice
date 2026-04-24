@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tasklist)",
+      "Bash(pnpm build *)",
+      "PowerShell(Get-MpPreference *)",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"Search|Index|Antivir|avast|avg|mcafee|norton|kasper|malware|360|guard|shield\" } | Select-Object Name, Id)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.build, null, 2\\)\\)\")",
+      "Bash(node *)",
+      "Bash(pnpm install *)"
+    ]
+  }
+}

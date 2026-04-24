@@ -9,7 +9,8 @@ const FileOperations = {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const base64 = event.target.result;
+        const base64 = event.target && typeof event.target.result === 'string' ? event.target.result : '';
+        if (!base64) return;
         setQrCodeImage(base64);
         localStorage.setItem('jewelryQRCode', base64);
       };

@@ -24,34 +24,34 @@ function InputModal({ isOpen, title, defaultValue, onSubmit, onCancel }) {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      className="modal-overlay"
       onClick={onCancel}
     >
       <div 
-        className="bg-white rounded-lg p-6 w-96"
+        className="modal-card modal-card-sm"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold mb-4">{title}</h3>
+        <h3 className="modal-title">{title}</h3>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className="w-full px-3 py-2 border border-tertiary rounded focus:ring-2 focus:ring-secondary mb-4"
+            className="form-control"
             autoFocus
             placeholder="Enter value..."
           />
-          <div className="flex gap-2 justify-end">
+          <div className="row row-end">
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              className="btn btn-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition-colors"
+              className="btn btn-primary"
             >
               OK
             </button>

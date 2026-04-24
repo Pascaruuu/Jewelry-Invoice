@@ -4,6 +4,23 @@
 
 const { useState, useEffect } = React;
 
+const getInitialTheme = () => {
+  const savedTheme = localStorage.getItem('jewelryTheme');
+  if (savedTheme === 'dark' || savedTheme === 'light') return savedTheme;
+
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return prefersDark ? 'dark' : 'light';
+};
+
+const prunePaymentHistory = (records) => {
+  const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  return records.filter((record) => {
+    if (record.status === 'pending') return true;
+    const recordTime = record.updatedAt || record.createdAt || record.id;
+    return !recordTime || recordTime >= oneWeekAgo;
+  });
+};
+
 function ReceiptCalculator() {
   // Get components from window
   const { Header, Sidebar, GroupedTypeSelector, GroupedClientSelector, InputModal, CustomPopup } = window;
@@ -24,6 +41,8 @@ function ReceiptCalculator() {
   const [inputModalData, setInputModalData] = useState({ title: '', defaultValue: '', onSubmit: null });
   const [showClientSelector, setShowClientSelector] = useState(false);
   const [popup, setPopup] = useState(null);
+  const [theme, setTheme] = useState(getInitialTheme);
+  const [currentSettingsSection, setCurrentSettingsSection] = useState('settings-paths');
   
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -95,6 +114,12 @@ function ReceiptCalculator() {
 
   // Load data from localStorage
   useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('jewelryTheme', theme);
+  }, [theme]);
+
+  // Keep the CSS variable theme in sync with app state.
+  useEffect(() => {
     const savedDrafts = localStorage.getItem('jewelryDrafts');
     if (savedDrafts) setDrafts(JSON.parse(savedDrafts));
     
@@ -108,7 +133,11 @@ function ReceiptCalculator() {
     if (savedQR) setQrCodeImage(savedQR);
 
     const savedPaymentHistory = localStorage.getItem('jewelryPaymentHistory');
-    if (savedPaymentHistory) setPaymentHistory(JSON.parse(savedPaymentHistory));
+    if (savedPaymentHistory) {
+      const prunedHistory = prunePaymentHistory(JSON.parse(savedPaymentHistory));
+      setPaymentHistory(prunedHistory);
+      localStorage.setItem('jewelryPaymentHistory', JSON.stringify(prunedHistory));
+    }
 
     const savedItemTypeGroups = localStorage.getItem('jewelryItemTypeGroups');
     if (savedItemTypeGroups) setItemTypeGroups(JSON.parse(savedItemTypeGroups));
@@ -122,6 +151,10 @@ function ReceiptCalculator() {
     const savedQtyUnits = localStorage.getItem('jewelryQtyUnits');
     if (savedQtyUnits) setQtyUnitOptions(JSON.parse(savedQtyUnits));
   }, []);
+
+  const toggleTheme = () => {
+    setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark');
+  };
 
   // ======================================================================
   // MODAL HELPERS
@@ -145,6 +178,12 @@ function ReceiptCalculator() {
     setInputModalData({ title: '', defaultValue: '', onSubmit: null });
   };
 
+  /**
+   * @param {string} type
+   * @param {string} title
+   * @param {string} message
+   * @param {any} [onConfirm]
+   */
   const showPopup = (type, title, message, onConfirm = null) => {
     return new Promise((resolve) => {
       setPopup({
@@ -153,7 +192,7 @@ function ReceiptCalculator() {
         message,
         onConfirm: () => {
           setPopup(null);
-          if (onConfirm) onConfirm();
+          if (typeof onConfirm === 'function') onConfirm();
           resolve(true);
         },
         onCancel: () => {
@@ -240,6 +279,27 @@ function ReceiptCalculator() {
   // ======================================================================
   // DRAFT MANAGEMENT
   // ======================================================================
+  const getSubItemCountForQuantity = (quantity) => {
+    const parsedQty = parseFloat(quantity);
+    if (!Number.isFinite(parsedQty) || parsedQty <= 0) return 1;
+    return Math.ceil(parsedQty);
+  };
+
+  const normalizeSubItemsForQuantity = (item) => {
+    const requiredCount = getSubItemCountForQuantity(item.quantity);
+    const subItems = Array.isArray(item.subItems) && item.subItems.length > 0
+      ? item.subItems.map(sub => ({ weight: sub.weight || '', laborCost: sub.laborCost || '' }))
+      : [];
+
+    if (subItems.length < requiredCount) {
+      for (let i = subItems.length; i < requiredCount; i++) {
+        subItems.push({ weight: '', laborCost: '' });
+      }
+    }
+
+    return subItems.slice(0, requiredCount);
+  };
+
   const saveDraft = async () => {
     const newDrafts = [...drafts];
     
@@ -267,6 +327,7 @@ function ReceiptCalculator() {
       goldMix: '',
       // Don't set goldPrice - let it use global
       goldPrice: '',
+      manualGoldPrice: null,
       items: [{ 
         itemName: '', 
         quantity: '1',
@@ -293,9 +354,7 @@ function ReceiptCalculator() {
       quantity: item.quantity || '1',
       qtyUnit: item.qtyUnit || '',
       productCode: item.productCode || '',
-      subItems: Array.isArray(item.subItems) && item.subItems.length > 0 
-        ? item.subItems.map(sub => ({ weight: sub.weight || '', laborCost: sub.laborCost || '' }))
-        : [{ weight: '', laborCost: '' }],
+      subItems: normalizeSubItemsForQuantity(item),
       manualTotal: item.manualTotal || null
     }));
     
@@ -304,6 +363,7 @@ function ReceiptCalculator() {
       clientName: draft.clientName || '',
       goldMix: draft.goldMix || '',
       goldPrice: draft.hasOwnProperty('goldPrice') ? draft.goldPrice : '',
+      manualGoldPrice: draft.manualGoldPrice ?? null,
       items: normalizedItems
     });
   };
@@ -350,7 +410,7 @@ function ReceiptCalculator() {
     const newItems = [...formData.items];
     
     if (field === 'quantity') {
-      const newQty = parseInt(value) || 1;
+      const newQty = getSubItemCountForQuantity(value);
       const currentQty = newItems[index].subItems.length;
       
       if (newQty > currentQty) {
@@ -414,14 +474,15 @@ function ReceiptCalculator() {
     };
 
     const calculateTotals = () => {
-    const totalQty = formData.items.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0);
+    const totalQty = formData.items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+    const roundedTotalQty = Math.round(totalQty * 100) / 100;
     const totalWeight = formData.items.reduce((sum, item) => {
         return sum + item.subItems.reduce((s, sub) => s + (parseFloat(sub.weight) || 0), 0);
     }, 0);
     const totalLabor = formData.items.reduce((sum, item) => {
         return sum + item.subItems.reduce((s, sub) => s + (parseFloat(sub.laborCost) || 0), 0);
     }, 0);
-    return { totalQty, totalWeight, totalLabor };
+    return { totalQty: roundedTotalQty, totalWeight, totalLabor };
     };
 
     const formatDate = (dateString) => {
@@ -435,6 +496,7 @@ function ReceiptCalculator() {
         clientName: '',
         goldMix: '',
         goldPrice: '',
+        manualGoldPrice: null,
         items: [{ 
           itemName: '', 
           quantity: '1',
@@ -444,6 +506,17 @@ function ReceiptCalculator() {
           manualTotal: null
         }]
       });
+    };
+
+    const handleResetInvoice = async () => {
+      const confirmed = await showPopup(
+        'warning',
+        'សម្អាតវិក្កយបត្រ / Clear Invoice',
+        'This will clear the current invoice editor. Saved drafts and saved files will not be deleted.',
+        () => {}
+      );
+
+      if (confirmed) handleReset();
     };
 
     // Get effective gold price (manual override or global)
@@ -462,7 +535,8 @@ function ReceiptCalculator() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const base64 = event.target.result;
+        const base64 = event.target && typeof event.target.result === 'string' ? event.target.result : '';
+        if (!base64) return;
         setQrCodeImage(base64);
         localStorage.setItem('jewelryQRCode', base64);
       };
@@ -561,6 +635,8 @@ function ReceiptCalculator() {
           
           const paymentRecord = {
             id: Date.now(),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
             clientName: formData.clientName,
             orders: orderSummary,
             savedTime: new Date().toLocaleString(),
@@ -574,7 +650,7 @@ function ReceiptCalculator() {
           await showPopup(
             'success',
             'រក្សាទុកជោគជ័យ! / Saved Successfully!',
-            `Path: ${result.path}\n\nតើអ្នកចង់បើកឯកសារដើម្បីបោះពុម្ពទេ?\nDo you want to open the file to print?`,
+            `Path: ${result.path}\n\nតើអ្នកចង់បើកវិក្កយបត្រនៅក្នុង browser ទេ?\nOpen the saved invoice in the browser?`,
             async () => {
               try {
                 await ipcRenderer.invoke('open-file', result.path);
@@ -642,7 +718,7 @@ function ReceiptCalculator() {
 
   const updatePaymentStatus = (id, status) => {
     const updated = paymentHistory.map(record => 
-      record.id === id ? { ...record, status } : record
+      record.id === id ? { ...record, status, updatedAt: Date.now() } : record
     );
     setPaymentHistory(updated);
     localStorage.setItem('jewelryPaymentHistory', JSON.stringify(updated));
@@ -727,7 +803,7 @@ const deleteFile = async (filePath) => {
   // Payment History Page
   if (currentPage === 'payment') {
     return (
-      <div className="min-h-screen bg-accent">
+      <div className="app-shell">
         <Header 
           formData={formData}
           setFormData={setFormData}
@@ -735,18 +811,23 @@ const deleteFile = async (filePath) => {
           handleSaveReceipt={handleSaveReceipt}
           globalGoldPrice={globalGoldPrice}
           setGlobalGoldPrice={setGlobalGoldPrice}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
 
-        <div className="flex pt-20">
+        <div className="app-content">
           <Sidebar 
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
+            currentSettingsSection={currentSettingsSection}
+            setCurrentSettingsSection={setCurrentSettingsSection}
             drafts={drafts}
             activeTab={activeTab}
             loadDraft={loadDraft}
             deleteDraft={deleteDraft}
             addNewDraft={addNewDraft}
-            restartPrintSpooler={restartPrintSpooler}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
 
           {popup && (
@@ -773,7 +854,7 @@ const deleteFile = async (filePath) => {
   // Settings Page
   if (currentPage === 'settings') {
     return (
-      <div className="min-h-screen bg-accent">
+      <div className="app-shell">
         <Header 
           formData={formData}
           setFormData={setFormData}
@@ -781,18 +862,23 @@ const deleteFile = async (filePath) => {
           handleSaveReceipt={handleSaveReceipt}
           globalGoldPrice={globalGoldPrice}
           setGlobalGoldPrice={setGlobalGoldPrice}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
 
-        <div className="flex pt-20">
+        <div className="app-content has-page-sidebar">
           <Sidebar 
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
+            currentSettingsSection={currentSettingsSection}
+            setCurrentSettingsSection={setCurrentSettingsSection}
             drafts={drafts}
             activeTab={activeTab}
             loadDraft={loadDraft}
             deleteDraft={deleteDraft}
             addNewDraft={addNewDraft}
-            restartPrintSpooler={restartPrintSpooler}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
 
           {popup && (
@@ -815,6 +901,7 @@ const deleteFile = async (filePath) => {
           />
 
           <SettingsPage
+            currentSettingsSection={currentSettingsSection}
             savePath={savePath}
             handleSelectSavePath={handleSelectSavePath}
             clientGroups={clientGroups}
@@ -838,6 +925,7 @@ const deleteFile = async (filePath) => {
             addGoldMix={addGoldMix}
             removeGoldMix={removeGoldMix}
             showInput={showInput}
+            restartPrintSpooler={restartPrintSpooler}
           />
         </div>
       </div>
@@ -847,7 +935,7 @@ const deleteFile = async (filePath) => {
   // Saved files Page
   if (currentPage === 'files') {
     return (
-      <div className="min-h-screen bg-accent">
+      <div className="app-shell">
         <Header 
           formData={formData}
           setFormData={setFormData}
@@ -855,18 +943,23 @@ const deleteFile = async (filePath) => {
           handleSaveReceipt={handleSaveReceipt}
           globalGoldPrice={globalGoldPrice}
           setGlobalGoldPrice={setGlobalGoldPrice}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
 
-        <div className="flex pt-20">
+        <div className="app-content">
           <Sidebar 
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
+            currentSettingsSection={currentSettingsSection}
+            setCurrentSettingsSection={setCurrentSettingsSection}
             drafts={drafts}
             activeTab={activeTab}
             loadDraft={loadDraft}
             deleteDraft={deleteDraft}
             addNewDraft={addNewDraft}
-            restartPrintSpooler={restartPrintSpooler}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
 
           {popup && (
@@ -891,7 +984,7 @@ const deleteFile = async (filePath) => {
 
   // Invoice Page (Default)
   return (
-    <div className="min-h-screen bg-accent">
+    <div className="app-shell">
       <Header 
         formData={formData}
         setFormData={setFormData}
@@ -899,18 +992,23 @@ const deleteFile = async (filePath) => {
         handleSaveReceipt={handleSaveReceipt}
         globalGoldPrice={globalGoldPrice}
         setGlobalGoldPrice={setGlobalGoldPrice}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
-      <div className="flex pt-20">
+      <div className="app-content has-page-sidebar">
         <Sidebar 
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
+          currentSettingsSection={currentSettingsSection}
+          setCurrentSettingsSection={setCurrentSettingsSection}
           drafts={drafts}
           activeTab={activeTab}
           loadDraft={loadDraft}
           deleteDraft={deleteDraft}
           addNewDraft={addNewDraft}
-          restartPrintSpooler={restartPrintSpooler}
+          theme={theme}
+          toggleTheme={toggleTheme}
         />
 
         {popup && (
@@ -971,8 +1069,7 @@ const deleteFile = async (filePath) => {
           calculateGrandTotal={calculateGrandTotal}
           calculateTotals={calculateTotals}
           roundTotal={roundTotal}
-          handleReset={handleReset}
-          handlePrint={handlePrint}
+          handleResetInvoice={handleResetInvoice}
           addNewDraft={addNewDraft}
           drafts={drafts}
           globalGoldPrice={globalGoldPrice}

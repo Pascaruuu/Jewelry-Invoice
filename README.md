@@ -123,7 +123,7 @@ A professional desktop application for managing jewelry invoices in Cambodia, bu
 
 - **Framework:** Electron (Desktop App)
 - **Frontend:** React 18 (with Babel for JSX)
-- **Styling:** Tailwind CSS (Custom build)
+- **Styling:** Local theme CSS (`libs/theme.css` + `libs/shared.css`)
 - **File Operations:** Node.js fs/path modules
 - **PDF Generation:** Native Electron printing
 - **Data Storage:** LocalStorage + File system
@@ -161,7 +161,8 @@ jewelry-invoice-app/
 │   ├── react.production.min.js
 │   ├── react-dom.production.min.js
 │   ├── babel.min.js
-│   └── tailwind.min.css
+│   ├── theme.css
+│   └── shared.css
 └── assets/                 # Images and resources
     └── screenshots/        # Application screenshots
 ```
@@ -172,14 +173,14 @@ jewelry-invoice-app/
 
 ### **Colors & Theme**
 
-Edit the theme colors in `index.html`:
+Edit theme tokens in `libs/theme.css` and reusable component/layout styles in `libs/shared.css`:
 
 ```css
 :root {
-  --primary: #0B2E33;    /* Dark teal */
-  --secondary: #4F7C82;  /* Medium teal */
-  --tertiary: #93B1B5;   /* Light teal */
-  --accent: #B8E3E9;     /* Pale teal */
+  --primary: var(--blue-700);
+  --secondary: var(--blue-500);
+  --page-bg: var(--slate-50);
+  --surface: var(--white);
 }
 ```
 
